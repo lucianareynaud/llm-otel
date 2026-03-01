@@ -1,0 +1,5 @@
+{"id": "classify_001", "input": {"message": "What is 2+2?"}, "expected": {"complexity": "simple", "recommended_tier": "cheap", "needs_escalation": false}}
+{"id": "classify_002", "input": {"message": "Analyze the complex implications of quantum computing on cryptography"}, "expected": {"complexity": "complex", "recommended_tier": "expensive", "needs_escalation": true}}
+{"id": "classify_003", "input": {"message": "Can you explain how Python is used in web development and data analysis?"}, "expected": {"complexity": "medium", "recommended_tier": "cheap", "needs_escalation": false}}
+{"id": "classify_004", "input": {"message": "Briefly explain what HTTP is"}, "expected": {"complexity": "simple", "recommended_tier": "cheap", "needs_escalation": false}}
+{"id": "classify_005", "input": {"message": "Provide a comprehensive evaluation of the trade-offs between microservices and monolithic architectures, considering scalability, maintainability, deployment complexity, and team organization"}, "expected": {"complexity": "complex", "recommended_tier": "expensive", "needs_escalation": true}}

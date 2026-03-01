@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Web framework
+# ─────────────────────────────────────────────────────────────────────────────
+fastapi==0.134.0
+uvicorn[standard]==0.41.0   # [standard] pulls in httptools + uvloop for production perf
+httpx==0.28.1               # FastAPI TestClient transport
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Data validation
+# ─────────────────────────────────────────────────────────────────────────────
+pydantic==2.12.5
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LLM provider
+# ─────────────────────────────────────────────────────────────────────────────
+openai==2.24.0
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Testing
+# ─────────────────────────────────────────────────────────────────────────────
+pytest==9.0.2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenTelemetry
+#
+# All OTel packages must be version-locked together. The SDK, exporters, and
+# instrumentation packages are designed as a matched set — mismatching minor
+# versions can cause silent failures or proto serialisation errors.
+#
+# Version mapping used here:
+#   opentelemetry-api/sdk:                    1.39.1
+#   opentelemetry-exporter-otlp-proto-http:   1.39.1  (same as SDK)
+#   opentelemetry-semantic-conventions:       0.60b1  (tracks SDK with 0.x prefix)
+#   opentelemetry-instrumentation-fastapi:    0.60b1  (idem)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Core OTel API — the stable public interface all instrumentation code imports.
+# The API is separated from the SDK so that library authors can depend on the
+# API without forcing a specific SDK implementation on their users.
+opentelemetry-api==1.39.1
+
+# Core OTel SDK — the implementation: TracerProvider, MeterProvider,
+# BatchSpanProcessor, PeriodicExportingMetricReader, etc.
+opentelemetry-sdk==1.39.1
+
+# OTLP HTTP/protobuf exporter — sends traces and metrics over HTTP to any
+# OTel-compatible backend (Grafana Cloud, Datadog, Jaeger, Collector, etc.).
+# Uses HTTP/protobuf (not gRPC) to avoid needing grpcio as a dependency.
+opentelemetry-exporter-otlp-proto-http==1.39.1
+
+# FastAPI auto-instrumentation — wraps every HTTP handler in an OTel span
+# automatically, propagates W3C traceparent headers, and links HTTP spans
+# to child spans created deeper in the call stack (e.g. our LLM gateway spans).
+opentelemetry-instrumentation-fastapi==0.60b1
+
+# Semantic Conventions — typed constants for standard attribute names.
+# The gen_ai.* conventions (in _incubating) cover LLM-specific attributes:
+# gen_ai.system, gen_ai.request.model, gen_ai.usage.input_tokens, etc.
+opentelemetry-semantic-conventions==0.60b1

@@ -1,0 +1,5 @@
+{"id": "answer_routed_001", "input": {"message": "What is 2+2?"}, "expected": {"routing_decision": "cheap", "min_answer_length": 1}}
+{"id": "answer_routed_002", "input": {"message": "Analyze the complex implications of quantum computing"}, "expected": {"routing_decision": "expensive", "min_answer_length": 1}}
+{"id": "answer_routed_003", "input": {"message": "Tell me about Python"}, "expected": {"routing_decision": "cheap", "min_answer_length": 1}}
+{"id": "answer_routed_004", "input": {"message": "Quick question: what is REST?"}, "expected": {"routing_decision": "cheap", "min_answer_length": 1}}
+{"id": "answer_routed_005", "input": {"message": "Provide a detailed comparison of SQL and NoSQL databases"}, "expected": {"routing_decision": "expensive", "min_answer_length": 1}}

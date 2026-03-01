@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local env
+.env
+.env.*
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# Runtime artifacts
+artifacts/logs/
+artifacts/aggregates/
+
+# Keep generated reports/eval outputs out of git by default
+artifacts/reports/
+
+# If you later want example artifacts tracked, create a committed sample/ folder instead.
