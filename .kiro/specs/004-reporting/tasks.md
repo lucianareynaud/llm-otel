@@ -8,13 +8,13 @@ Tasks must be executed in the order listed to preserve deterministic behavior, i
 ### 1. Create reporting package skeleton
 Create the minimal reporting package structure.
 
-- [ ] 1.1 Create `reporting/__init__.py`
+- [x] 1.1 Create `reporting/__init__.py`
   - Keep file empty or minimal
 
-- [ ] 1.2 Create `reporting/make_report.py`
+- [x] 1.2 Create `reporting/make_report.py`
   - This will be the CLI entry point for report generation
 
-- [ ] 1.3 Optionally create `reporting/metrics.py`
+- [x] 1.3 Optionally create `reporting/metrics.py`
   - Only if needed for small aggregation helpers
   - Do not create a framework or analytics layer
 
@@ -25,7 +25,7 @@ Create the minimal reporting package structure.
 ### 2. Implement telemetry loading
 Create deterministic loading for telemetry JSONL inputs.
 
-- [ ] 2.1 In `reporting/make_report.py`, implement telemetry loading
+- [x] 2.1 In `reporting/make_report.py`, implement telemetry loading
   - Load JSONL from explicit file path
   - Parse one JSON object per line
   - Ignore empty lines
@@ -40,7 +40,7 @@ Create deterministic loading for telemetry JSONL inputs.
 ### 3. Implement eval result loading
 Create deterministic loading for eval result JSON files.
 
-- [ ] 3.1 In `reporting/make_report.py`, implement eval result loading
+- [x] 3.1 In `reporting/make_report.py`, implement eval result loading
   - Load JSON from explicit file path
   - Support missing eval files gracefully
   - Return `None` or equivalent when file is absent
@@ -53,10 +53,10 @@ Create deterministic loading for eval result JSON files.
 ### 4. Implement route-level aggregation
 Create deterministic route-level metrics from telemetry rows.
 
-- [ ] 4.1 In `reporting/make_report.py` or `reporting/metrics.py`, implement grouping by route
+- [x] 4.1 In `reporting/make_report.py` or `reporting/metrics.py`, implement grouping by route
   - Group telemetry rows by `route`
 
-- [ ] 4.2 Implement aggregate calculations per route
+- [x] 4.2 Implement aggregate calculations per route
   - `request_count`
   - `latency_p50_ms`
   - `latency_p95_ms`
@@ -65,7 +65,7 @@ Create deterministic route-level metrics from telemetry rows.
   - `error_rate`
   - `schema_valid_rate`
 
-- [ ] 4.3 Implement overall metrics
+- [x] 4.3 Implement overall metrics
   - Same metrics at overall level across all routes
 
 **Acceptance**: Report code can compute route-level and overall aggregates deterministically from telemetry rows.
@@ -75,7 +75,7 @@ Create deterministic route-level metrics from telemetry rows.
 ### 5. Implement percentile calculation
 Implement deterministic latency percentile helpers.
 
-- [ ] 5.1 Add percentile helper
+- [x] 5.1 Add percentile helper
   - Support p50 and p95
   - Keep implementation small and explicit
   - Do not add heavy numerical dependencies
@@ -88,7 +88,7 @@ Implement deterministic latency percentile helpers.
 ### 6. Implement before/after comparison
 Add deterministic comparison logic for two telemetry snapshots.
 
-- [ ] 6.1 Implement before/after comparison in `reporting/make_report.py`
+- [x] 6.1 Implement before/after comparison in `reporting/make_report.py`
   - Accept:
     - `before_log_path`
     - `after_log_path`
@@ -101,7 +101,7 @@ Add deterministic comparison logic for two telemetry snapshots.
     - estimated average cost
     - error rate
 
-- [ ] 6.2 Add ranked summaries
+- [x] 6.2 Add ranked summaries
   - Identify route with largest cost change
   - Identify route with largest latency change
   - Identify route with largest error burden in current snapshot
@@ -113,7 +113,7 @@ Add deterministic comparison logic for two telemetry snapshots.
 ### 7. Implement markdown rendering
 Generate one inspectable markdown report.
 
-- [ ] 7.1 In `reporting/make_report.py`, implement markdown rendering
+- [x] 7.1 In `reporting/make_report.py`, implement markdown rendering
   - Include sections in this order:
     1. Title and run context
     2. Executive summary
@@ -124,7 +124,7 @@ Generate one inspectable markdown report.
     7. Pareto-style section
     8. Recommendation section
 
-- [ ] 7.2 Make recommendations rule-based
+- [x] 7.2 Make recommendations rule-based
   - Recommendations must be grounded in observed artifacts
   - Do not generate speculative prose
   - Examples:
@@ -139,13 +139,13 @@ Generate one inspectable markdown report.
 ### 8. Implement report writing
 Write the final report artifact to disk.
 
-- [ ] 8.1 Write markdown report to output path
+- [x] 8.1 Write markdown report to output path
   - Default target should be explicit through CLI argument
   - Expected typical path:
     - `artifacts/reports/report.md`
   - Ensure parent directories are created if missing
 
-- [ ] 8.2 Optionally write aggregate JSON summary
+- [x] 8.2 Optionally write aggregate JSON summary
   - Only if useful and trivial to support
   - Expected path:
     - `artifacts/aggregates/report_summary.json`
@@ -158,7 +158,7 @@ Write the final report artifact to disk.
 ### 9. Implement CLI entry point
 Create an explicit CLI for report generation.
 
-- [ ] 9.1 In `reporting/make_report.py`, implement CLI argument parsing
+- [x] 9.1 In `reporting/make_report.py`, implement CLI argument parsing
   - Support:
     - `--before-log`
     - `--after-log`
@@ -170,7 +170,7 @@ Create an explicit CLI for report generation.
   - No interactive prompts
   - No hidden notebook workflow
 
-- [ ] 9.2 Support two modes
+- [x] 9.2 Support two modes
   - Single-run mode:
     - only `--after-log`
   - Before/after mode:
@@ -183,7 +183,7 @@ Create an explicit CLI for report generation.
 ### 10. Create reporting tests
 Create tests for the reporting layer.
 
-- [ ] 10.1 Update or create `tests/test_reporting.py`
+- [x] 10.1 Update or create `tests/test_reporting.py`
   - Test telemetry JSONL loading
   - Test malformed-row handling
   - Test eval result loading
@@ -203,7 +203,7 @@ Create tests for the reporting layer.
 ### 11. Update README with reporting usage
 Document how to run the reporting layer.
 
-- [ ] 11.1 Update `README.md`
+- [x] 11.1 Update `README.md`
   - Add section: `Reporting`
   - Document example commands for:
     - single-run mode
@@ -220,31 +220,31 @@ Document how to run the reporting layer.
 ### 12. Verify acceptance criteria
 Verify the 004 spec acceptance criteria against the implementation.
 
-- [ ] 12.1 Verify CLI report generation works
+- [x] 12.1 Verify CLI report generation works
   - Run with explicit input paths
   - Confirm markdown file is written
 
-- [ ] 12.2 Verify single-run mode
+- [x] 12.2 Verify single-run mode
   - Run with only `--after-log`
   - Confirm report contains route summary and eval summary
 
-- [ ] 12.3 Verify before/after mode
+- [x] 12.3 Verify before/after mode
   - Run with `--before-log` and `--after-log`
   - Confirm report contains delta section
 
-- [ ] 12.4 Verify operational readability
+- [x] 12.4 Verify operational readability
   - Confirm report answers:
     - which route costs the most
     - which route fails the most
     - which change affected cost or latency the most
     - what should be changed next
 
-- [ ] 12.5 Verify no external observability dependency
+- [x] 12.5 Verify no external observability dependency
   - Confirm no Langfuse dependency
   - Confirm no dashboard UI
   - Confirm no notebook requirement
 
-- [ ] 12.6 Verify inspectability
+- [x] 12.6 Verify inspectability
   - Confirm markdown is readable directly
   - Confirm artifact paths are local and explicit
 

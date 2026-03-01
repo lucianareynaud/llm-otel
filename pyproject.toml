@@ -48,7 +48,7 @@ exclude = ["tests*", "scripts*", "artifacts*"]
 # ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
 line-length = 100
-exclude = [".venv", ".git", "__pycache__", "artifacts"]
+exclude = [".venv", ".venv_test", ".venv*", ".git", "__pycache__", "artifacts", "*.egg-info"]
 
 [tool.ruff.lint]
 # E = pycodestyle errors, F = pyflakes, I = isort, UP = pyupgrade

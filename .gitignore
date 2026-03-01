@@ -5,8 +5,10 @@ __pycache__/
 *.pyd
 .python-version
 
-# Virtual environments
+# Virtual environments (any .venv* variant in repo root)
 .venv/
+.venv_test/
+.venv*/
 venv/
 env/
 

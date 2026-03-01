@@ -14,18 +14,18 @@ the prior baseline is broken.
 
 ## Task 1 — Update cost_model.py
 
-- [ ] 1.1 Open `gateway/cost_model.py`
-- [ ] 1.2 Replace `"gpt-5-mini"` key with `"gpt-4o-mini"`
-- [ ] 1.3 Replace `"gpt-5.2"` key with `"gpt-4o"`
-- [ ] 1.4 Set pricing:
+- [x] 1.1 Open `gateway/cost_model.py`
+- [x] 1.2 Replace `"gpt-5-mini"` key with `"gpt-4o-mini"`
+- [x] 1.3 Replace `"gpt-5.2"` key with `"gpt-4o"`
+- [x] 1.4 Set pricing:
   - `gpt-4o-mini`: `input_per_1m: 0.15`, `output_per_1m: 0.60`
   - `gpt-4o`: `input_per_1m: 2.50`, `output_per_1m: 10.00`
-- [ ] 1.5 Add a comment above `MODEL_PRICING`:
+- [x] 1.5 Add a comment above `MODEL_PRICING`:
   ```python
   # Source: https://platform.openai.com/docs/models — retrieved YYYY-MM-DD
   ```
   Replace `YYYY-MM-DD` with today's date.
-- [ ] 1.6 Update any docstring or inline comment that references the old names
+- [x] 1.6 Update any docstring or inline comment that references the old names
 
 **Acceptance**: `grep "gpt-5" gateway/cost_model.py` returns zero matches.
 
@@ -33,10 +33,10 @@ the prior baseline is broken.
 
 ## Task 2 — Update policies.py
 
-- [ ] 2.1 Open `gateway/policies.py`
-- [ ] 2.2 In the `/answer-routed` policy, replace `"gpt-5-mini"` → `"gpt-4o-mini"` and `"gpt-5.2"` → `"gpt-4o"`
-- [ ] 2.3 In the `/conversation-turn` policy, apply the same replacements
-- [ ] 2.4 Verify no other occurrences of `gpt-5` exist in the file
+- [x] 2.1 Open `gateway/policies.py`
+- [x] 2.2 In the `/answer-routed` policy, replace `"gpt-5-mini"` → `"gpt-4o-mini"` and `"gpt-5.2"` → `"gpt-4o"`
+- [x] 2.3 In the `/conversation-turn` policy, apply the same replacements
+- [x] 2.4 Verify no other occurrences of `gpt-5` exist in the file
 
 **Acceptance**: `grep "gpt-5" gateway/policies.py` returns zero matches.
 
@@ -44,10 +44,10 @@ the prior baseline is broken.
 
 ## Task 3 — Update test assertions
 
-- [ ] 3.1 Open `tests/test_gateway.py`
+- [x] 3.1 Open `tests/test_gateway.py`
   - Replace every `"gpt-5-mini"` string with `"gpt-4o-mini"`
   - Replace every `"gpt-5.2"` string with `"gpt-4o"`
-- [ ] 3.2 Open `tests/test_routes.py`
+- [x] 3.2 Open `tests/test_routes.py`
   - Replace every `selected_model="gpt-5-mini"` with `selected_model="gpt-4o-mini"`
   - Replace every `selected_model="gpt-5.2"` with `selected_model="gpt-4o"`
 
@@ -57,8 +57,8 @@ the prior baseline is broken.
 
 ## Task 4 — Verify
 
-- [ ] 4.1 Run full repository scan: `grep -r "gpt-5" .` — must return zero matches
-- [ ] 4.2 Run test suite:
+- [x] 4.1 Run full repository scan: `grep -r "gpt-5" .` — must return zero matches
+- [x] 4.2 Run test suite:
   ```bash
   OTEL_SDK_DISABLED=true pytest tests/ -v
   ```

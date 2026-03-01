@@ -8,7 +8,7 @@ Tasks must be executed in the order listed to preserve bounded scope, determinis
 ### 1. Create dataset files
 Create versioned JSONL datasets for all three routes.
 
-- [ ] 1.1 Create `evals/datasets/classify_cases.jsonl`
+- [x] 1.1 Create `evals/datasets/classify_cases.jsonl`
   - Add at least 5 cases for `/classify-complexity`
   - Each case must include: `id`, `input`, `expected`
   - Cases must cover: simple, medium, complex, long, and edge-case messages
@@ -17,7 +17,7 @@ Create versioned JSONL datasets for all three routes.
     - `recommended_tier`
     - `needs_escalation`
 
-- [ ] 1.2 Create `evals/datasets/answer_routed_cases.jsonl`
+- [x] 1.2 Create `evals/datasets/answer_routed_cases.jsonl`
   - Add at least 5 cases for `/answer-routed`
   - Each case must include: `id`, `input`, `expected`
   - Cases must cover: cheap path, expensive path, keyword-triggered routing, short message, edge case
@@ -25,7 +25,7 @@ Create versioned JSONL datasets for all three routes.
     - `routing_decision`
     - optional `min_answer_length`
 
-- [ ] 1.3 Create `evals/datasets/conversation_turn_cases.jsonl`
+- [x] 1.3 Create `evals/datasets/conversation_turn_cases.jsonl`
   - Add at least 5 cases for `/conversation-turn`
   - Each case must include: `id`, `input`, `expected`
   - Cases must cover: empty history, short history, full strategy, sliding_window, summarized
@@ -41,7 +41,7 @@ Create versioned JSONL datasets for all three routes.
 ### 2. Create runner utility helpers
 Create one tiny shared utility module for dataset loading and result writing.
 
-- [ ] 2.1 Create `evals/runners/common.py`
+- [x] 2.1 Create `evals/runners/common.py`
   - Implement `load_jsonl_cases(path: str) -> list[dict]`
   - Implement `write_eval_results(path: str, payload: dict) -> None`
   - Implement small helper for UTC timestamp generation
@@ -55,18 +55,18 @@ Create one tiny shared utility module for dataset loading and result writing.
 ### 3. Create assertion helpers
 Create small explicit helper functions for bounded checks.
 
-- [ ] 3.1 Create `evals/assertions/schema_checks.py`
+- [x] 3.1 Create `evals/assertions/schema_checks.py`
   - Implement `check_required_fields(response: dict, fields: list[str]) -> tuple[bool, str]`
   - Implement `check_field_type(response: dict, field: str, expected_type: type) -> tuple[bool, str]`
   - Implement `check_max_length(value: str, max_length: int) -> tuple[bool, str]`
   - Keep helpers small and explicit
 
-- [ ] 3.2 Create `evals/assertions/routing_checks.py`
+- [x] 3.2 Create `evals/assertions/routing_checks.py`
   - Implement `check_routing_decision(response: dict, expected: str) -> tuple[bool, str]`
   - Implement `check_selected_model_present(response: dict) -> tuple[bool, str]`
   - Do not inspect semantic answer quality
 
-- [ ] 3.3 Create `evals/assertions/context_checks.py`
+- [x] 3.3 Create `evals/assertions/context_checks.py`
   - Implement `check_turn_index(response: dict, expected: int) -> tuple[bool, str]`
   - Implement `check_context_strategy(response: dict, expected: str) -> tuple[bool, str]`
   - Implement `check_context_tokens_present(response: dict) -> tuple[bool, str]`
@@ -79,7 +79,7 @@ Create small explicit helper functions for bounded checks.
 ### 4. Create classify eval runner
 Create the deterministic eval runner for `/classify-complexity`.
 
-- [ ] 4.1 Create `evals/runners/run_classify_eval.py`
+- [x] 4.1 Create `evals/runners/run_classify_eval.py`
   - Use `TestClient(app)` in-process
   - Load `evals/datasets/classify_cases.jsonl`
   - Call `POST /classify-complexity` for each case
@@ -99,7 +99,7 @@ Create the deterministic eval runner for `/classify-complexity`.
 ### 5. Create answer-routed eval runner
 Create the deterministic eval runner for `/answer-routed`.
 
-- [ ] 5.1 Create `evals/runners/run_answer_routed_eval.py`
+- [x] 5.1 Create `evals/runners/run_answer_routed_eval.py`
   - Use `TestClient(app)` in-process
   - Load `evals/datasets/answer_routed_cases.jsonl`
   - Default eval mode must patch or monkeypatch:
@@ -123,7 +123,7 @@ Create the deterministic eval runner for `/answer-routed`.
 ### 6. Create conversation-turn eval runner
 Create the deterministic eval runner for `/conversation-turn`.
 
-- [ ] 6.1 Create `evals/runners/run_conversation_turn_eval.py`
+- [x] 6.1 Create `evals/runners/run_conversation_turn_eval.py`
   - Use `TestClient(app)` in-process
   - Load `evals/datasets/conversation_turn_cases.jsonl`
   - Default eval mode must patch or monkeypatch:
@@ -148,7 +148,7 @@ Create the deterministic eval runner for `/conversation-turn`.
 ### 7. Add artifact directory handling
 Ensure artifact directories are created deterministically.
 
-- [ ] 7.1 Update runner write paths
+- [x] 7.1 Update runner write paths
   - Ensure `artifacts/reports/` is created automatically if missing
   - Do not require manual setup
   - Keep file output simple and local
@@ -160,7 +160,7 @@ Ensure artifact directories are created deterministically.
 ### 8. Test dataset loading and assertion helpers
 Create tests for the eval harness support code.
 
-- [ ] 8.1 Create `tests/test_evals.py`
+- [x] 8.1 Create `tests/test_evals.py`
   - Test JSONL dataset loading from temporary files
   - Test result writing format
   - Test `schema_checks.py`
@@ -175,7 +175,7 @@ Create tests for the eval harness support code.
 ### 9. Test classify runner end-to-end
 Add a small end-to-end smoke test for the classify runner.
 
-- [ ] 9.1 Extend `tests/test_evals.py`
+- [x] 9.1 Extend `tests/test_evals.py`
   - Run classify eval against a temporary or small fixture dataset
   - Verify:
     - runner executes successfully
@@ -190,7 +190,7 @@ Add a small end-to-end smoke test for the classify runner.
 ### 10. Test gateway-backed runners end-to-end
 Add small end-to-end smoke tests for the gateway-backed runners.
 
-- [ ] 10.1 Extend `tests/test_evals.py`
+- [x] 10.1 Extend `tests/test_evals.py`
   - Add one smoke test for `run_answer_routed_eval.py`
   - Add one smoke test for `run_conversation_turn_eval.py`
   - Patch or monkeypatch route import-boundary call sites:
@@ -211,7 +211,7 @@ Add small end-to-end smoke tests for the gateway-backed runners.
 ### 11. Update README with eval usage
 Document how to run the eval harness.
 
-- [ ] 11.1 Update `README.md`
+- [x] 11.1 Update `README.md`
   - Add a section: `Eval Harness`
   - Document:
     - `python3 evals/runners/run_classify_eval.py`
@@ -228,27 +228,27 @@ Document how to run the eval harness.
 ### 12. Verify acceptance criteria
 Verify the 003 spec acceptance criteria against the implemented harness.
 
-- [ ] 12.1 Verify each route has its own dataset and runner
+- [x] 12.1 Verify each route has its own dataset and runner
   - Confirm all three JSONL datasets exist
   - Confirm all three runners exist
 
-- [ ] 12.2 Verify pass/fail output per case
+- [x] 12.2 Verify pass/fail output per case
   - Run each runner
   - Confirm output JSON contains per-case results
 
-- [ ] 12.3 Verify route-specific bounded checks
+- [x] 12.3 Verify route-specific bounded checks
   - Confirm classify checks exact deterministic values
   - Confirm gateway-backed runners check metadata, schema, and bounded behavior only
 
-- [ ] 12.4 Verify local inspectability
+- [x] 12.4 Verify local inspectability
   - Confirm result JSON files exist under `artifacts/reports/`
   - Confirm failures include readable reasons
 
-- [ ] 12.5 Verify no live provider dependency
+- [x] 12.5 Verify no live provider dependency
   - Confirm eval runners do not require `OPENAI_API_KEY`
   - Confirm route import-boundary mocking is used for gateway-backed routes
 
-- [ ] 12.6 Verify no scope creep
+- [x] 12.6 Verify no scope creep
   - Confirm there is no semantic eval
   - Confirm there is no model judge
   - Confirm there is no notebook workflow
