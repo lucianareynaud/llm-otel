@@ -29,6 +29,41 @@ This repository is a reference implementation of those capabilities.
 
 **Test coverage:** 192 tests passing. Every public schema, telemetry event structure, report output shape, and gateway contract is covered by schema drift guards that fail loudly on unintentional breaking changes.
 
+## What Works Right Now
+
+This project is under active development, but the core observability, evaluation, and reporting pipeline is **fully operational today**. You do not need to wait for the roadmap items to get value from it.
+
+### Observability — ready
+
+- Point `OTEL_EXPORTER_OTLP_ENDPOINT` at any OTLP-compatible backend (Grafana Cloud, Datadog, Jaeger, Honeycomb) and full traces with GenAI attributes start flowing immediately — no extra configuration.
+- Every LLM call produces an OTel `CLIENT` span nested under the HTTP `SERVER` span, with model name, token counts, latency, and error status as span attributes.
+- Four OTel metrics instruments emit per call: token usage, latency, estimated cost, request count. These feed directly into any dashboard connected to your collector.
+- In parallel, a structured JSON event is written to `artifacts/logs/telemetry.jsonl` — append-only, file-locked, works completely offline without a collector.
+
+### Cost attribution — ready
+
+- Every request has a `estimated_cost_usd` field computed locally from a pricing snapshot, tied to the exact model and token counts returned by the API.
+- The routing decision (`cheap` → `gpt-4o-mini`, `expensive` → `gpt-4o`) is recorded on every telemetry event — so you can immediately see the cost breakdown by tier.
+- The reporting CLI generates a markdown report with per-route total cost, average cost, p50/p95 latency, and error rate from any JSONL file.
+
+### Regression detection — ready
+
+- Three eval runners (one per route) run against versioned JSONL datasets and check schema compliance, routing metadata, and context metadata.
+- The CI regression workflow runs all three runners on every push to main and blocks the pipeline if any case fails.
+- Before/after comparison reports quantify the cost and latency delta between two telemetry snapshots — useful for validating that a model change or prompt change moved metrics in the intended direction.
+
+### What requires the roadmap to be complete
+
+| Capability | Needs |
+|---|---|
+| Per-user / per-key cost attribution | Spec 007 — auth middleware |
+| Exact pre-call token counts | Spec 009 — `tiktoken` integration |
+| Cache hit savings as explicit billing events | Spec 010 — semantic cache |
+| Automatic degradation detection | Spec 011 — circuit breaker |
+| Cost attribution across conversation sessions | Spec 012 — server-side persistence |
+
+Everything else in this section is functional with the current codebase.
+
 ## Tech Stack
 
 | Layer | Package | Version |
