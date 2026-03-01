@@ -35,7 +35,7 @@ Two OTel integration points live in this file:
    The resulting trace for a routed request looks like:
 
      POST /answer-routed  [kind=SERVER, FastAPIInstrumentor]
-       └── chat gpt-5-mini  [kind=CLIENT, gateway/client.py]
+       └── chat gpt-4o-mini  [kind=CLIENT, gateway/client.py]
 
    The child CLIENT span is linked to the SERVER span because both run on
    the same OS thread and share the same OTel context. FastAPIInstrumentor
@@ -57,7 +57,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-from app.routes import answer_routed, classify_complexity, conversation_turn
+from app.routes import answer_routed, classify_complexity, conversation_turn, health
+from app.routes.health import set_ready
 from gateway.otel_setup import setup_otel, shutdown_otel
 
 
@@ -80,14 +81,19 @@ async def lifespan(application: FastAPI):
     #    the real SDK provider, not the ProxyTracer.
     setup_otel()
 
-    # 2. Wrap every FastAPI route handler in an OTel SERVER span.
-    #    Also installs W3C Trace Context extraction/injection middleware so
-    #    incoming traceparent headers link this service into the caller's trace.
-    FastAPIInstrumentor.instrument_app(application)
+    # 2. Mark the process as ready so /readyz returns 200.
+    set_ready(True)
+
+    # 3. Wrap every FastAPI route handler in an OTel SERVER span.
+    #    health paths are excluded — they must never fail due to OTel state.
+    FastAPIInstrumentor.instrument_app(application, excluded_urls="healthz,readyz")
 
     yield
 
     # SHUTDOWN ────────────────────────────────────────────────────────────────
+    # Signal not-ready immediately so load balancers stop routing before teardown.
+    set_ready(False)
+
     # Flush BatchSpanProcessor queue and PeriodicExportingMetricReader.
     # Without this, the last N seconds of telemetry are silently discarded.
     shutdown_otel()
@@ -104,6 +110,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.include_router(health.router)
 app.include_router(classify_complexity.router, tags=["classification"])
 app.include_router(answer_routed.router, tags=["routing"])
 app.include_router(conversation_turn.router, tags=["conversation"])

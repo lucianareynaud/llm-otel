@@ -28,10 +28,10 @@ REQUIRED_FIELDS = ["answer", "selected_model", "routing_decision"]
 def _mock_gateway_result(model_tier: str) -> GatewayResult:
     """Return a deterministic mocked GatewayResult for eval execution."""
     if model_tier == "expensive":
-        selected_model = "gpt-5.2"
+        selected_model = "gpt-4o"
         text = "Mock answer for expensive tier"
     else:
-        selected_model = "gpt-5-mini"
+        selected_model = "gpt-4o-mini"
         text = "Mock answer for cheap tier"
 
     return GatewayResult(

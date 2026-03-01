@@ -11,7 +11,6 @@ from app.schemas.conversation_turn_response import ConversationTurnResponse
 from app.services.context_manager import prepare_context
 from gateway.client import call_llm
 
-
 router = APIRouter()
 
 

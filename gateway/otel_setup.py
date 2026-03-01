@@ -59,7 +59,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Optional
 
 from opentelemetry import metrics, trace
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
@@ -86,8 +85,8 @@ logger = logging.getLogger(__name__)
 _METRIC_EXPORT_INTERVAL_MS = int(os.getenv("OTEL_METRIC_EXPORT_INTERVAL", "30000"))
 
 # Module-level provider references kept for clean shutdown.
-_tracer_provider: Optional[TracerProvider] = None
-_meter_provider: Optional[MeterProvider] = None
+_tracer_provider: TracerProvider | None = None
+_meter_provider: MeterProvider | None = None
 
 
 def _build_resource() -> Resource:

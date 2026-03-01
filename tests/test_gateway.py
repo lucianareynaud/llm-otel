@@ -52,19 +52,22 @@ class TestCostModel:
     """Tests for cost_model module."""
 
     def test_estimate_cost_gpt5_mini(self):
-        """Cost estimation for gpt-5-mini should be deterministic."""
-        cost = cost_model.estimate_cost("gpt-5-mini", 1_000_000, 500_000)
-        assert cost == 1.25
+        """Cost estimation for gpt-4o-mini should be deterministic."""
+        # 1M input * $0.15/1M + 500K output * $0.60/1M = $0.15 + $0.30 = $0.45
+        cost = cost_model.estimate_cost("gpt-4o-mini", 1_000_000, 500_000)
+        assert cost == pytest.approx(0.45)
 
     def test_estimate_cost_gpt52(self):
-        """Cost estimation for gpt-5.2 should be deterministic."""
-        cost = cost_model.estimate_cost("gpt-5.2", 1_000_000, 500_000)
-        assert cost == 8.75
+        """Cost estimation for gpt-4o should be deterministic."""
+        # 1M input * $2.50/1M + 500K output * $10.00/1M = $2.50 + $5.00 = $7.50
+        cost = cost_model.estimate_cost("gpt-4o", 1_000_000, 500_000)
+        assert cost == pytest.approx(7.50)
 
     def test_estimate_cost_small_values(self):
         """Cost estimation should work with small token counts."""
-        cost = cost_model.estimate_cost("gpt-5-mini", 1000, 500)
-        assert cost == pytest.approx(0.00125)
+        # 1000 input * $0.15/1M + 500 output * $0.60/1M = $0.00015 + $0.0003 = $0.00045
+        cost = cost_model.estimate_cost("gpt-4o-mini", 1000, 500)
+        assert cost == pytest.approx(0.00045)
 
     def test_estimate_cost_unknown_model(self):
         """Unknown model should raise ValueError."""
@@ -74,19 +77,19 @@ class TestCostModel:
     def test_estimate_cost_negative_tokens(self):
         """Negative token counts should raise ValueError."""
         with pytest.raises(ValueError, match="non-negative"):
-            cost_model.estimate_cost("gpt-5-mini", -100, 500)
+            cost_model.estimate_cost("gpt-4o-mini", -100, 500)
 
         with pytest.raises(ValueError, match="non-negative"):
-            cost_model.estimate_cost("gpt-5-mini", 1000, -50)
+            cost_model.estimate_cost("gpt-4o-mini", 1000, -50)
 
     def test_get_pricing(self):
         """get_pricing should return pricing configuration."""
         pricing = cost_model.get_pricing()
 
-        assert "gpt-5-mini" in pricing
-        assert "gpt-5.2" in pricing
-        assert pricing["gpt-5-mini"]["input_per_1m"] == 0.25
-        assert pricing["gpt-5.2"]["output_per_1m"] == 14.00
+        assert "gpt-4o-mini" in pricing
+        assert "gpt-4o" in pricing
+        assert pricing["gpt-4o-mini"]["input_per_1m"] == 0.15
+        assert pricing["gpt-4o"]["output_per_1m"] == 10.00
 
 
 class TestPolicies:
@@ -116,14 +119,14 @@ class TestPolicies:
             policies.get_route_policy("/unknown-route")
 
     def test_get_model_for_tier_cheap(self):
-        """Cheap tier should resolve to gpt-5-mini."""
+        """Cheap tier should resolve to gpt-4o-mini."""
         model = policies.get_model_for_tier("/answer-routed", "cheap")
-        assert model == "gpt-5-mini"
+        assert model == "gpt-4o-mini"
 
     def test_get_model_for_tier_expensive(self):
-        """Expensive tier should resolve to gpt-5.2."""
+        """Expensive tier should resolve to gpt-4o."""
         model = policies.get_model_for_tier("/answer-routed", "expensive")
-        assert model == "gpt-5.2"
+        assert model == "gpt-4o"
 
     def test_get_model_for_tier_unknown_tier(self):
         """Unknown tier should raise ValueError."""
@@ -138,7 +141,7 @@ class TestGatewayClient:
         """GatewayResult should have all required fields."""
         result = GatewayResult(
             text="test response",
-            selected_model="gpt-5-mini",
+            selected_model="gpt-4o-mini",
             request_id="test-id",
             tokens_in=100,
             tokens_out=50,
@@ -147,7 +150,7 @@ class TestGatewayClient:
         )
 
         assert result.text == "test response"
-        assert result.selected_model == "gpt-5-mini"
+        assert result.selected_model == "gpt-4o-mini"
         assert result.request_id == "test-id"
         assert result.tokens_in == 100
         assert result.tokens_out == 50
@@ -183,7 +186,7 @@ class TestGatewayClient:
 
         assert isinstance(result, GatewayResult)
         assert result.text == "Test response"
-        assert result.selected_model == "gpt-5-mini"
+        assert result.selected_model == "gpt-4o-mini"
         assert result.tokens_in == 100
         assert result.tokens_out == 50
         assert result.estimated_cost_usd > 0
@@ -197,11 +200,11 @@ class TestGatewayClient:
 
         assert event["status"] == "success"
         assert event["route"] == "/answer-routed"
-        assert event["model"] == "gpt-5-mini"
+        assert event["model"] == "gpt-4o-mini"
         assert event["tokens_in"] == 100
         assert event["tokens_out"] == 50
         assert event["routing_decision"] == "cheap"
-        assert event["selected_model"] == "gpt-5-mini"
+        assert event["selected_model"] == "gpt-4o-mini"
 
     @patch("gateway.client.OpenAI")
     @patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"})
@@ -364,7 +367,7 @@ class TestTelemetryEmission:
             request_id="test-id",
             route="/answer-routed",
             provider="openai",
-            model="gpt-5-mini",
+            model="gpt-4o-mini",
             latency_ms=123.45,
             status="success",
             tokens_in=100,
@@ -375,7 +378,7 @@ class TestTelemetryEmission:
             error_type=None,
             metadata={
                 "routing_decision": "cheap",
-                "selected_model": "gpt-5-mini",
+                "selected_model": "gpt-4o-mini",
             },
         )
 
@@ -388,7 +391,7 @@ class TestTelemetryEmission:
         assert event["request_id"] == "test-id"
         assert event["route"] == "/answer-routed"
         assert event["provider"] == "openai"
-        assert event["model"] == "gpt-5-mini"
+        assert event["model"] == "gpt-4o-mini"
         assert event["latency_ms"] == 123.45
         assert event["status"] == "success"
         assert event["tokens_in"] == 100
@@ -398,4 +401,4 @@ class TestTelemetryEmission:
         assert event["schema_valid"] is True
         assert event["error_type"] is None
         assert event["routing_decision"] == "cheap"
-        assert event["selected_model"] == "gpt-5-mini"
+        assert event["selected_model"] == "gpt-4o-mini"

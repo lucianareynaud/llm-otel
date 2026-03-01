@@ -1,6 +1,7 @@
 """Response schema for /classify-complexity route."""
 
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 

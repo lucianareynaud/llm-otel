@@ -11,7 +11,6 @@ from app.schemas.answer_routed_response import AnswerRoutedResponse
 from app.services.routing import determine_complexity
 from gateway.client import call_llm
 
-
 router = APIRouter()
 
 

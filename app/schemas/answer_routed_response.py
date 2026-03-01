@@ -1,6 +1,7 @@
 """Response schema for /answer-routed route."""
 
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 

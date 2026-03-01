@@ -176,7 +176,7 @@ class TestRoutingChecks:
         assert "not present" in reason
 
     def test_check_selected_model_present_valid(self):
-        response = {"selected_model": "gpt-5-mini"}
+        response = {"selected_model": "gpt-4o-mini"}
         passed, reason = check_selected_model_present(response)
         assert passed is True
         assert reason == "ok"
@@ -194,13 +194,13 @@ class TestRoutingChecks:
         assert "empty" in reason
 
     def test_check_routing_metadata_valid(self):
-        response = {"selected_model": "gpt-5-mini", "routing_decision": "cheap"}
+        response = {"selected_model": "gpt-4o-mini", "routing_decision": "cheap"}
         passed, reason = check_routing_metadata(response)
         assert passed is True
         assert reason == "ok"
 
     def test_check_routing_metadata_missing_field(self):
-        response = {"selected_model": "gpt-5-mini"}
+        response = {"selected_model": "gpt-4o-mini"}
         passed, reason = check_routing_metadata(response)
         assert passed is False
         assert "routing_decision" in reason

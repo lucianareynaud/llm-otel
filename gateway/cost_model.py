@@ -10,16 +10,16 @@ from copy import deepcopy
 
 TOKENS_PER_MILLION = 1_000_000
 
-# Local pricing snapshot for the current provider.
-# Prices are in USD per 1M tokens.
+# Source: https://platform.openai.com/docs/models — retrieved 2026-02-28
+# Prices are in USD per 1M tokens (standard tier, non-cached input).
 MODEL_PRICING: dict[str, dict[str, float]] = {
-    "gpt-5-mini": {
-        "input_per_1m": 0.25,
-        "output_per_1m": 2.00,
+    "gpt-4o-mini": {
+        "input_per_1m": 0.15,
+        "output_per_1m": 0.60,
     },
-    "gpt-5.2": {
-        "input_per_1m": 1.75,
-        "output_per_1m": 14.00,
+    "gpt-4o": {
+        "input_per_1m": 2.50,
+        "output_per_1m": 10.00,
     },
 }
 

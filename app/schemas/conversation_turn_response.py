@@ -1,6 +1,7 @@
 """Response schema for /conversation-turn route."""
 
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 

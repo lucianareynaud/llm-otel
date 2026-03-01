@@ -4,6 +4,8 @@ A minimal reference app for measuring, controlling, and reporting the operationa
 
 The repository demonstrates three controlled LLM workflows that make cost, routing decisions, context growth, telemetry, and bounded regression detection inspectable. OpenTelemetry instrumentation is a first-class concern — every LLM call produces both OTel spans/metrics and an append-only JSONL telemetry file.
 
+**OTel signal stability posture:** Traces and metrics are at Stable stability in the Python SDK and are the primary portfolio signals. The GenAI semantic conventions (`gen_ai.*` attributes) remain at Development stability in `opentelemetry-semantic-conventions 0.60b1` and can rename attributes between releases. All `gen_ai.*` attribute strings are centralized in `gateway/semconv.py` — the only file that imports from `opentelemetry.semconv._incubating`. When the spec evolves, only that file changes.
+
 ## Tech Stack
 
 | Layer | Package | Version |
@@ -41,20 +43,21 @@ Without a valid API key, requests to gateway-backed routes (`/answer-routed`, `/
 
 | Variable | Default | Description |
 |---|---|---|
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(none — falls back to console)_ | OTLP HTTP collector URL (e.g. Grafana Cloud, Datadog, Jaeger) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(none — console fallback)_ | OTLP HTTP collector URL (e.g. Grafana Cloud, Datadog, Jaeger) |
 | `OTEL_SDK_DISABLED` | `false` | Set `true` in CI to suppress OTel I/O |
 | `OTEL_SERVICE_NAME` | `llm-cost-control` | Reported service name in traces |
 | `OTEL_SERVICE_VERSION` | `0.1.0` | Reported service version |
 | `OTEL_DEPLOYMENT_ENVIRONMENT` | `development` | Deployment environment label |
 | `OTEL_METRIC_EXPORT_INTERVAL` | `30000` | Metric export interval in ms |
+| `OTEL_SEMCONV_STABILITY_OPT_IN` | _(not set)_ | GenAI convention migration mode: `genai` (new names only) or `genai/dup` (old + new) |
 
 ### Gateway behavior (optional)
 
 | Variable | Default | Description |
 |---|---|---|
-| `RATE_LIMIT_RPM` | `60` | Requests per minute (not yet enforced) |
+| `RATE_LIMIT_RPM` | `60` | Requests per minute (spec 007, not yet enforced) |
 | `MAX_CONTEXT_TOKENS` | `8192` | Maximum context tokens allowed |
-| `ROUTING_USE_EMBEDDINGS` | `true` | Enable embedding-based routing classifier (spec 013, not yet active) |
+| `ROUTING_USE_EMBEDDINGS` | `true` | Embedding-based routing classifier (spec 013, not yet active) |
 
 ## End-to-End Workflow
 
@@ -71,9 +74,17 @@ uvicorn app.main:app --reload
 
 The app will be available at `http://127.0.0.1:8000`. Interactive API docs at `http://127.0.0.1:8000/docs`.
 
-On startup, `setup_otel()` configures the global `TracerProvider` and `MeterProvider`. `FastAPIInstrumentor` wraps every route handler in an OTel `SERVER` span. On shutdown, buffered spans and metrics are flushed before exit.
+On startup, `setup_otel()` configures the global `TracerProvider` and `MeterProvider`. `FastAPIInstrumentor` wraps every business route handler in an OTel `SERVER` span (health paths are excluded). On shutdown, buffered spans and metrics are flushed before exit.
 
 ## Routes
+
+### GET /healthz
+
+Liveness probe — always returns `{"status": "ok"}` with HTTP 200. No auth required.
+
+### GET /readyz
+
+Readiness probe — returns `{"status": "ready"}` / 200 after startup completes, `{"status": "not_ready"}` / 503 otherwise. No auth required.
 
 ### POST /classify-complexity
 
@@ -159,14 +170,16 @@ The `/conversation-turn` route supports three context strategies:
 2. Opens an OTel `CLIENT` span with GenAI semantic convention attributes (`gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, etc.).
 3. Calls the OpenAI Responses API (`client.responses.create()`) with exponential-backoff retry.
 4. Estimates cost locally via the pricing snapshot in `gateway/cost_model.py`.
-5. Emits dual telemetry: OTel metrics (four instruments) + appends a JSON event to `artifacts/logs/telemetry.jsonl`.
+5. Emits dual telemetry: OTel metrics (four instruments) + appends a JSON event to `artifacts/logs/telemetry.jsonl` (file-locked for multi-worker safety).
 
 ### Models and pricing
 
+Source: <https://platform.openai.com/docs/models> — retrieved 2026-02-28
+
 | Tier | Model | Input ($/1M tokens) | Output ($/1M tokens) |
 |---|---|---|---|
-| `cheap` | `gpt-5-mini` | $0.25 | $2.00 |
-| `expensive` | `gpt-5.2` | $1.75 | $14.00 |
+| `cheap` | `gpt-4o-mini` | $0.15 | $0.60 |
+| `expensive` | `gpt-4o` | $2.50 | $10.00 |
 
 ### Route policies
 
@@ -176,8 +189,10 @@ Both gateway-backed routes use `max_output_tokens=500`, `retry_attempts=2`, `cac
 
 ```
 POST /answer-routed  [kind=SERVER, FastAPIInstrumentor]
-  └── chat gpt-5-mini  [kind=CLIENT, gateway/client.py]
+  └── chat gpt-4o-mini  [kind=CLIENT, gateway/client.py]
 ```
+
+Span status follows the OTel spec: `UNSET` on success (UNSET means no error); `Status(StatusCode.ERROR, description)` on failure.
 
 ### OTel metrics emitted per call
 
@@ -202,16 +217,16 @@ Example telemetry event:
 
 ```json
 {
-  "timestamp": "2026-02-27T22:58:56.195450+00:00",
+  "timestamp": "2026-02-28T22:58:56.195450+00:00",
   "request_id": "46835b9b-90a0-4a06-83aa-999db8388c4e",
   "route": "/conversation-turn",
   "provider": "openai",
-  "model": "gpt-5.2",
+  "model": "gpt-4o",
   "latency_ms": 3751.665540970862,
   "status": "success",
   "tokens_in": 28,
   "tokens_out": 118,
-  "estimated_cost_usd": 0.0017009999999999998,
+  "estimated_cost_usd": 0.00124,
   "cache_hit": false,
   "schema_valid": true,
   "error_type": null,
@@ -220,7 +235,7 @@ Example telemetry event:
   "context_strategy": "full",
   "context_strategy_applied": "full",
   "context_tokens_used": 15,
-  "selected_model": "gpt-5.2"
+  "selected_model": "gpt-4o"
 }
 ```
 
@@ -243,9 +258,9 @@ It does not perform semantic evaluation, model-judge scoring, or open-ended qual
 Run eval runners from repo root in module mode:
 
 ```bash
-python3 -m evals.runners.run_classify_eval
-python3 -m evals.runners.run_answer_routed_eval
-python3 -m evals.runners.run_conversation_turn_eval
+OTEL_SDK_DISABLED=true python3 -m evals.runners.run_classify_eval
+OTEL_SDK_DISABLED=true python3 -m evals.runners.run_answer_routed_eval
+OTEL_SDK_DISABLED=true python3 -m evals.runners.run_conversation_turn_eval
 ```
 
 Use module execution (`-m`) — not direct script execution — to ensure consistent import resolution.
@@ -301,36 +316,67 @@ python3 -m reporting.make_report \
 
 Reports include: per-route aggregate tables (p50/p95 latency, total cost, error rate), before/after delta comparison, Pareto cost/error analysis, eval summary, and rule-based recommendations.
 
-## Scripts
+## GenAI Semantic Convention Isolation
 
-Utility scripts in `scripts/` for load generation and benchmarking. Run from repo root:
+The GenAI semantic conventions (`gen_ai.*` attribute names) are at [Development stability](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-spans/) and can change without a deprecation window. The repository is designed to survive a convention rename without touching any business logic:
 
-```bash
-python3 -m scripts.loadgen          # drive request volume to generate telemetry
-python3 -m scripts.benchmark_before_after  # capture before/after snapshots
-python3 -m scripts.make_report      # report generation shortcut
+**`gateway/semconv.py`** is the single source of truth for all `gen_ai.*` attribute strings. `client.py` and `telemetry.py` import constants from here — never from `opentelemetry.semconv._incubating` directly.
+
+**`_PENDING_RENAMES`** in `gateway/semconv.py` is currently empty. When a rename is finalized in the spec, add one entry:
+
+```python
+_PENDING_RENAMES = {"gen_ai.system": "gen_ai.provider.name"}
 ```
+
+**`resolve_attrs()`** then handles the `OTEL_SEMCONV_STABILITY_OPT_IN` opt-in migration automatically:
+
+| `OTEL_SEMCONV_STABILITY_OPT_IN` | Behavior |
+|---|---|
+| _(not set)_ | Emit current attribute names unchanged |
+| `genai/dup` | Emit both old and new names simultaneously — use during migration window so dashboards built on either name continue working |
+| `genai` | Emit only new names — use once migration is complete |
+| `http,genai/dup` | Comma-separated tokens for multiple semconv families are supported |
+
+This mechanism is live and tested. Upgrading to a new convention version is a one-line change to `_PENDING_RENAMES`.
 
 ## Tests
 
-Run the full test suite:
-
 ```bash
-python3 -m pytest tests/ -q
+OTEL_SDK_DISABLED=true python3 -m pytest tests/ -q
 ```
 
 Run focused test modules:
 
 ```bash
-python3 -m pytest tests/test_routes.py -q       # route handlers (mocked gateway)
-python3 -m pytest tests/test_gateway.py -q      # cost model, policies, call_llm, error categorization
-python3 -m pytest tests/test_services.py -q     # routing heuristic, context strategies
-python3 -m pytest tests/test_evals.py -q        # eval datasets, assertion helpers, runner smoke tests
-python3 -m pytest tests/test_reporting.py -q    # telemetry normalization, aggregation, markdown rendering
-python3 -m pytest tests/test_schemas.py -q      # Pydantic schema validation
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_routes.py -q    # route handlers (mocked gateway)
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_gateway.py -q   # cost model, policies, call_llm, error categorization
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_services.py -q  # routing heuristic, context strategies
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_evals.py -q     # eval datasets, assertion helpers, runner smoke tests
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_reporting.py -q # telemetry normalization, aggregation, markdown rendering
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_schemas.py -q   # Pydantic schema validation
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_health.py -q    # /healthz and /readyz endpoints
+OTEL_SDK_DISABLED=true python3 -m pytest tests/test_semconv.py -q   # semconv constants and OTEL_SEMCONV_STABILITY_OPT_IN
 ```
 
-Set `OTEL_SDK_DISABLED=true` to suppress OTel I/O during test runs.
+`OTEL_SDK_DISABLED=true` prevents the OTel SDK from starting background threads and attempting OTLP connections during tests.
+
+## Linting and Type Checking
+
+```bash
+python3 -m ruff check .
+python3 -m mypy app/ gateway/ --ignore-missing-imports
+```
+
+Configuration lives in `pyproject.toml`. Both checks run in CI on every push.
+
+## CI
+
+| Workflow | Trigger | Steps |
+|---|---|---|
+| `ci.yml` | push / pull_request | ruff → mypy → pytest |
+| `regression.yml` | push to main | all three eval runners → fail if any `failed > 0` |
+
+No secrets are required in CI. Eval runners mock the gateway and do not call OpenAI.
 
 ## Artifact Paths
 
@@ -345,11 +391,32 @@ Set `OTEL_SDK_DISABLED=true` to suppress OTel I/O during test runs.
 
 ## Stub Modules
 
-The following modules are scaffolded but not yet implemented:
+The following modules are scaffolded but not yet implemented. Each raises `NotImplementedError` with a pointer to the implementing spec:
 
-- `gateway/cache.py` — semantic cache (exact SHA-256 lookup + cosine similarity layer)
-- `app/services/documents.py` — document store for retrieval
-- `app/services/retrieval.py` — retrieval service
+| Module | Implementing Spec |
+|---|---|
+| `gateway/cache.py` | spec 010 (semantic cache) |
+| `app/services/documents.py` | no spec yet assigned |
+| `app/services/retrieval.py` | no spec yet assigned |
+| `scripts/loadgen.py` | no spec yet assigned |
+| `scripts/benchmark_before_after.py` | no spec yet assigned |
+| `scripts/make_report.py` | no spec yet assigned |
+
+## Production-Readiness Roadmap
+
+The following specs are pending in sequential order (gate = required passing test count before starting):
+
+| Spec | Feature | Gate |
+|---|---|---|
+| 007 | Auth middleware (`X-API-Key`) + rate limiting (sliding window, 429) | 141 |
+| 008 | Async gateway retry (`AsyncOpenAI` + `asyncio.sleep`) | 150 |
+| 009 | Accurate token counting (`tiktoken`) | 150 |
+| 010 | Semantic cache (SHA-256 exact + cosine similarity layer) | 154 |
+| 011 | Circuit breaker (three-state: closed/open/half-open) | 162 |
+| 012 | Server-side conversation persistence (`InMemoryConversationStore` + Redis) | 170 |
+| 013 | Embedding-based routing classifier (kNN with OpenAI embeddings, keyword fallback) | 179 |
+
+Run `OTEL_SDK_DISABLED=true pytest tests/ -v | tail -1` to determine the current position in the sequence.
 
 ## Scope Notes
 

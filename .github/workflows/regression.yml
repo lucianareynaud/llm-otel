@@ -1,0 +1,56 @@
+name: Regression
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run classify eval
+        env:
+          OTEL_SDK_DISABLED: "true"
+        run: python -m evals.runners.run_classify_eval
+
+      - name: Run answer-routed eval
+        env:
+          OTEL_SDK_DISABLED: "true"
+        run: python -m evals.runners.run_answer_routed_eval
+
+      - name: Run conversation-turn eval
+        env:
+          OTEL_SDK_DISABLED: "true"
+        run: python -m evals.runners.run_conversation_turn_eval
+
+      - name: Check for regressions
+        run: |
+          python - <<'EOF'
+          import json, glob, sys
+          failures = 0
+          for path in sorted(glob.glob("artifacts/reports/*_eval_results.json")):
+              data = json.load(open(path))
+              n = data.get("failed", 0)
+              if n:
+                  print(f"FAIL  {path}: {n} failure(s)")
+              failures += n
+          if failures:
+              print(f"\nRegression: {failures} total eval failure(s)")
+              sys.exit(1)
+          print("All evals passed")
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: artifacts/reports/

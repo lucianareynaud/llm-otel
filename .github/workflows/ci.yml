@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff mypy
+
+      - name: Lint
+        run: python -m ruff check . --output-format=github
+
+      - name: Type check
+        run: python -m mypy app/ gateway/ --ignore-missing-imports
+
+      - name: Test
+        env:
+          OTEL_SDK_DISABLED: "true"
+        run: python -m pytest tests/ -v --tb=short --junitxml=results.xml
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: results.xml

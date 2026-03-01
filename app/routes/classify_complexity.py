@@ -10,7 +10,6 @@ from app.schemas.classify_complexity_request import ClassifyComplexityRequest
 from app.schemas.classify_complexity_response import ClassifyComplexityResponse
 from app.services.routing import determine_complexity
 
-
 router = APIRouter()
 
 

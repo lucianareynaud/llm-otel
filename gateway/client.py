@@ -14,11 +14,11 @@ including retries. This span is a child of the HTTP request span created by
 FastAPIInstrumentor, which means the full trace looks like:
 
   HTTP POST /answer-routed   (FastAPIInstrumentor, kind=SERVER)
-    └── chat gpt-5-mini      (this module, kind=CLIENT)
+    └── chat gpt-4o-mini      (this module, kind=CLIENT)
 
 The span name follows the GenAI Semantic Convention format:
   "{gen_ai.operation.name} {gen_ai.request.model}"
-  e.g. "chat gpt-5-mini"
+  e.g. "chat gpt-4o-mini"
 
 SpanKind.CLIENT is correct here because this process is acting as a client
 calling an external LLM service. The OTel spec defines CLIENT spans as those
@@ -28,10 +28,10 @@ SPAN LIFECYCLE
 ──────────────
   START  →  set request attributes (route, tier, model, max_output_tokens)
   SUCCESS →  set usage attributes (tokens_in, tokens_out, cost, cache_hit)
-             set span status to OK
+             leave span status UNSET (OTel convention: UNSET means no error)
   ERROR  →  call span.record_exception() to capture stack trace
              set error.type attribute (categorised error string)
-             set span status to ERROR
+             set span status to Status(StatusCode.ERROR, description)
 
 RETRYABLE vs NON-RETRYABLE ERRORS
 ───────────────────────────────────
@@ -56,20 +56,21 @@ from typing import Any, Literal
 import openai
 from openai import OpenAI
 from opentelemetry import trace
-from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import (
-    GEN_AI_OPERATION_NAME,
-    GEN_AI_REQUEST_MAX_TOKENS,
-    GEN_AI_REQUEST_MODEL,
-    GEN_AI_SYSTEM,
-    GEN_AI_USAGE_INPUT_TOKENS,
-    GEN_AI_USAGE_OUTPUT_TOKENS,
-    GenAiOperationNameValues,
-    GenAiSystemValues,
-)
-from opentelemetry.trace import SpanKind, StatusCode
+from opentelemetry.trace import SpanKind, Status, StatusCode
 
 from gateway.cost_model import estimate_cost
 from gateway.policies import get_model_for_tier, get_route_policy
+from gateway.semconv import (
+    ATTR_GEN_AI_OPERATION_NAME,
+    ATTR_GEN_AI_REQUEST_MAX_TOKENS,
+    ATTR_GEN_AI_REQUEST_MODEL,
+    ATTR_GEN_AI_SYSTEM,
+    ATTR_GEN_AI_USAGE_INPUT_TOKENS,
+    ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
+    VAL_GEN_AI_OPERATION_CHAT,
+    VAL_GEN_AI_SYSTEM_OPENAI,
+    resolve_attrs,
+)
 from gateway.telemetry import emit
 
 ModelTier = Literal["cheap", "expensive"]
@@ -158,32 +159,28 @@ def call_llm(
     # ── OTel Span ────────────────────────────────────────────────────────────
     # Span name format mandated by the GenAI Semantic Convention:
     #   "{gen_ai.operation.name} {gen_ai.request.model}"
-    # This produces names like "chat gpt-5-mini" or "chat gpt-5.2" in the UI.
-    span_name = f"{GenAiOperationNameValues.CHAT.value} {selected_model}"
+    # This produces names like "chat gpt-4o-mini" or "chat gpt-4o" in the UI.
+    # Span name format: "{operation} {model}" per GenAI Semantic Convention.
+    span_name = f"{VAL_GEN_AI_OPERATION_CHAT} {selected_model}"
 
-    # SpanKind.CLIENT = outbound synchronous remote call.
-    # This is correct because we are the client calling the OpenAI service.
-    # The OTel spec uses CLIENT kind for HTTP calls, DB calls, gRPC calls, etc.
     with _tracer.start_as_current_span(span_name, kind=SpanKind.CLIENT) as span:
 
         # ── Span attributes set at call start ────────────────────────────────
-        # These are set before the provider call so they appear even if the
-        # span ends due to an exception (span.record_exception relies on them).
+        # GenAI attributes are set through gateway.semconv constants (never
+        # imported from opentelemetry.semconv._incubating directly). This
+        # isolates the codebase from Development-stability attribute renames.
+        # resolve_attrs() applies OTEL_SEMCONV_STABILITY_OPT_IN dual-emission
+        # when _PENDING_RENAMES is non-empty during a migration window.
+        request_attrs = resolve_attrs({
+            ATTR_GEN_AI_SYSTEM: VAL_GEN_AI_SYSTEM_OPENAI,
+            ATTR_GEN_AI_OPERATION_NAME: VAL_GEN_AI_OPERATION_CHAT,
+            ATTR_GEN_AI_REQUEST_MODEL: selected_model,
+            ATTR_GEN_AI_REQUEST_MAX_TOKENS: policy.max_output_tokens,
+        })
+        for key, value in request_attrs.items():
+            span.set_attribute(key, value)
 
-        # Standard GenAI attributes — backends recognise these for LLM dashboards.
-        span.set_attribute(GEN_AI_SYSTEM, GenAiSystemValues.OPENAI.value)
-        span.set_attribute(GEN_AI_OPERATION_NAME, GenAiOperationNameValues.CHAT.value)
-        # gen_ai.request.model = the model name we are requesting.
-        # If the provider returns a different model in the response, that would
-        # be recorded as gen_ai.response.model — not needed here since we always
-        # get back the model we requested.
-        span.set_attribute(GEN_AI_REQUEST_MODEL, selected_model)
-        # gen_ai.request.max_tokens = the output token cap configured by policy.
-        # Standard GenAI span attribute; useful for debugging token-exceeded errors.
-        span.set_attribute(GEN_AI_REQUEST_MAX_TOKENS, policy.max_output_tokens)
-
-        # Custom gateway attributes — not part of the GenAI spec but important
-        # for routing and cost analysis specific to this application.
+        # Custom gateway attributes (stable, owned by this codebase).
         span.set_attribute("llm_gateway.route", route_name)
         span.set_attribute("llm_gateway.model_tier", model_tier)
         span.set_attribute("llm_gateway.request_id", request_id)
@@ -204,23 +201,24 @@ def call_llm(
             estimated_cost_usd = estimate_cost(selected_model, tokens_in, tokens_out)
 
             # ── Span attributes set on success ────────────────────────────────
-            # Token usage attributes follow the GenAI Semantic Convention.
-            # These are the primary cost-analysis attributes — every OTel
-            # backend that supports the GenAI spec will surface these in the
-            # LLM observability UI automatically.
-            span.set_attribute(GEN_AI_USAGE_INPUT_TOKENS, tokens_in)
-            span.set_attribute(GEN_AI_USAGE_OUTPUT_TOKENS, tokens_out)
+            usage_attrs = resolve_attrs({
+                ATTR_GEN_AI_USAGE_INPUT_TOKENS: tokens_in,
+                ATTR_GEN_AI_USAGE_OUTPUT_TOKENS: tokens_out,
+            })
+            for key, value in usage_attrs.items():
+                span.set_attribute(key, value)
 
             # Custom cost attribute. Not in the GenAI spec but important for
             # this application's cost-control mission.
             span.set_attribute("llm_gateway.estimated_cost_usd", estimated_cost_usd)
             span.set_attribute("llm_gateway.cache_hit", False)
 
-            # StatusCode.OK tells the backend that this operation succeeded.
-            # Without an explicit OK status, the span is treated as "unset"
-            # (not failed, but also not confirmed successful) — which is
-            # misleading in error-rate calculations.
-            span.set_status(StatusCode.OK)
+            # Per OTel spec, leave span status UNSET on success.
+            # UNSET is the correct signal for "no error occurred" in instrumentation
+            # code. Setting OK is reserved for cases where the application explicitly
+            # wants to assert a successful outcome to downstream consumers. For a
+            # library-level gateway CLIENT span, UNSET is correct and preferred —
+            # backends treat UNSET as success in error-rate calculations.
 
             emit(
                 request_id=request_id,
@@ -260,9 +258,11 @@ def call_llm(
             # these as error events on the span timeline.
             span.record_exception(exc)
 
-            # StatusCode.ERROR marks this span as failed. The description string
-            # is the human-readable error message that appears in the trace UI.
-            span.set_status(StatusCode.ERROR, str(exc))
+            # Status(StatusCode.ERROR, description) explicitly marks this span as
+            # failed with a human-readable description visible in the trace UI.
+            # Using the Status wrapper (rather than bare StatusCode) is the idiomatic
+            # OTel Python pattern and ensures the description string is attached.
+            span.set_status(Status(StatusCode.ERROR, str(exc)))
 
             # error.type is a standard OTel attribute (not gen_ai.* namespaced).
             # It holds the Python exception class name (e.g. "RateLimitError")
@@ -312,7 +312,7 @@ def _call_provider(
 
     Args:
         prompt:           Input text payload.
-        model:            Resolved concrete model name (e.g. "gpt-5-mini").
+        model:            Resolved concrete model name (e.g. "gpt-4o-mini").
         max_output_tokens: Token cap from RoutePolicy.
         retry_attempts:   Number of additional attempts after the first failure.
 
@@ -442,7 +442,10 @@ def _categorize_error(error: Exception) -> str:
     if isinstance(error, openai.InternalServerError):
         return "transient_error"
 
-    if isinstance(error, (openai.BadRequestError, openai.NotFoundError, openai.UnprocessableEntityError)):
+    if isinstance(
+        error,
+        (openai.BadRequestError, openai.NotFoundError, openai.UnprocessableEntityError),
+    ):
         return "invalid_request"
 
     return "unknown"

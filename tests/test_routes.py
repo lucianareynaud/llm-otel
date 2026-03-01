@@ -94,7 +94,7 @@ class TestAnswerRoutedRoute:
     def test_cheap_routing(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Test cheap response",
-            selected_model="gpt-5-mini",
+            selected_model="gpt-4o-mini",
             request_id="req-1",
             tokens_in=10,
             tokens_out=5,
@@ -112,13 +112,13 @@ class TestAnswerRoutedRoute:
 
         assert data["answer"] == "Test cheap response"
         assert data["routing_decision"] == "cheap"
-        assert data["selected_model"] == "gpt-5-mini"
+        assert data["selected_model"] == "gpt-4o-mini"
 
     @patch("app.routes.answer_routed.call_llm")
     def test_expensive_routing(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Test expensive response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-2",
             tokens_in=20,
             tokens_out=10,
@@ -136,13 +136,13 @@ class TestAnswerRoutedRoute:
 
         assert data["answer"] == "Test expensive response"
         assert data["routing_decision"] == "expensive"
-        assert data["selected_model"] == "gpt-5.2"
+        assert data["selected_model"] == "gpt-4o"
 
     @patch("app.routes.answer_routed.call_llm")
     def test_routing_metadata_present(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Test response",
-            selected_model="gpt-5-mini",
+            selected_model="gpt-4o-mini",
             request_id="req-3",
             tokens_in=10,
             tokens_out=5,
@@ -177,7 +177,7 @@ class TestAnswerRoutedRoute:
     def test_response_schema_compliance(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Test response",
-            selected_model="gpt-5-mini",
+            selected_model="gpt-4o-mini",
             request_id="req-4",
             tokens_in=10,
             tokens_out=5,
@@ -205,7 +205,7 @@ class TestConversationTurnRoute:
     def test_full_strategy_empty_history(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-5",
             tokens_in=15,
             tokens_out=8,
@@ -235,7 +235,7 @@ class TestConversationTurnRoute:
     def test_full_strategy_with_history(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-6",
             tokens_in=20,
             tokens_out=10,
@@ -264,7 +264,7 @@ class TestConversationTurnRoute:
     def test_sliding_window_strategy(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-7",
             tokens_in=20,
             tokens_out=10,
@@ -292,7 +292,7 @@ class TestConversationTurnRoute:
     def test_summarized_strategy(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-8",
             tokens_in=20,
             tokens_out=10,
@@ -320,7 +320,7 @@ class TestConversationTurnRoute:
     def test_context_metadata_present(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-9",
             tokens_in=15,
             tokens_out=8,
@@ -349,7 +349,7 @@ class TestConversationTurnRoute:
     def test_turn_index_calculation(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-10",
             tokens_in=15,
             tokens_out=8,
@@ -397,7 +397,7 @@ class TestConversationTurnRoute:
     def test_response_schema_compliance(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-11",
             tokens_in=15,
             tokens_out=8,
@@ -432,7 +432,7 @@ class TestRouteIntegration:
     def test_all_routes_accessible(self, mock_conversation_call_llm, mock_answer_call_llm):
         mock_answer_call_llm.return_value = GatewayResult(
             text="Answer routed response",
-            selected_model="gpt-5-mini",
+            selected_model="gpt-4o-mini",
             request_id="req-12",
             tokens_in=10,
             tokens_out=5,
@@ -441,7 +441,7 @@ class TestRouteIntegration:
         )
         mock_conversation_call_llm.return_value = GatewayResult(
             text="Conversation response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-13",
             tokens_in=15,
             tokens_out=8,
@@ -471,7 +471,7 @@ class TestRouteIntegration:
     def test_consistent_routing_logic(self, mock_call_llm):
         mock_call_llm.return_value = GatewayResult(
             text="Expensive response",
-            selected_model="gpt-5.2",
+            selected_model="gpt-4o",
             request_id="req-14",
             tokens_in=20,
             tokens_out=10,

@@ -38,7 +38,7 @@ def _mock_call_llm(
     """Mock implementation of call_llm for deterministic eval execution."""
     return GatewayResult(
         text="Mock conversation response",
-        selected_model="gpt-5.2",
+        selected_model="gpt-4o",
         request_id="mock-request-id",
         tokens_in=15,
         tokens_out=25,

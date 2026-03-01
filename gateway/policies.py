@@ -26,8 +26,8 @@ _ROUTE_POLICIES: dict[str, RoutePolicy] = {
         retry_attempts=2,
         cache_enabled=False,
         model_for_tier={
-            "cheap": "gpt-5-mini",
-            "expensive": "gpt-5.2",
+            "cheap": "gpt-4o-mini",
+            "expensive": "gpt-4o",
         },
     ),
     "/conversation-turn": RoutePolicy(
@@ -35,8 +35,8 @@ _ROUTE_POLICIES: dict[str, RoutePolicy] = {
         retry_attempts=2,
         cache_enabled=False,
         model_for_tier={
-            "cheap": "gpt-5-mini",
-            "expensive": "gpt-5.2",
+            "cheap": "gpt-4o-mini",
+            "expensive": "gpt-4o",
         },
     ),
 }

@@ -41,6 +41,7 @@ guards are needed here.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
 from datetime import datetime, timezone
@@ -48,15 +49,19 @@ from pathlib import Path
 from typing import Any, Literal
 
 from opentelemetry import metrics
-from opentelemetry.semconv._incubating.attributes.gen_ai_attributes import (
-    GEN_AI_OPERATION_NAME,
-    GEN_AI_REQUEST_MODEL,
-    GEN_AI_SYSTEM,
-    GEN_AI_USAGE_INPUT_TOKENS,
-    GEN_AI_USAGE_OUTPUT_TOKENS,
-    GenAiOperationNameValues,
-    GenAiSystemValues,
-    GenAiTokenTypeValues,
+
+from gateway.semconv import (
+    ATTR_GEN_AI_OPERATION_NAME,
+    ATTR_GEN_AI_REQUEST_MODEL,
+    ATTR_GEN_AI_SYSTEM,
+    ATTR_GEN_AI_TOKEN_TYPE,
+    ATTR_GEN_AI_USAGE_INPUT_TOKENS,
+    ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
+    VAL_GEN_AI_OPERATION_CHAT,
+    VAL_GEN_AI_SYSTEM_OPENAI,
+    VAL_GEN_AI_TOKEN_TYPE_INPUT,
+    VAL_GEN_AI_TOKEN_TYPE_OUTPUT,
+    resolve_attrs,
 )
 
 logger = logging.getLogger(__name__)
@@ -201,7 +206,7 @@ def emit(
         request_id:            UUID identifying this specific call.
         route:                 Gateway route name (e.g. "/answer-routed").
         provider:              LLM provider name (e.g. "openai").
-        model:                 Concrete model name (e.g. "gpt-5-mini").
+        model:                 Concrete model name (e.g. "gpt-4o-mini").
         latency_ms:            Wall-clock duration in milliseconds.
         status:                "success" or "error".
         tokens_in:             Input token count (0 on error).
@@ -271,46 +276,27 @@ def _record_otel_metrics(
 
     ATTRIBUTE KEY NAMING
     ─────────────────────
-    We use string constants imported from
-    ``opentelemetry.semconv._incubating.attributes.gen_ai_attributes`` for
-    the gen_ai.* attributes. These constants ensure we spell the attribute
-    keys exactly as the GenAI Semantic Convention spec defines them. Using
-    the spec-defined names means any OTel-aware backend (Grafana, Datadog,
-    etc.) can apply standard dashboards and alerts for LLM observability
-    without custom configuration.
+    All gen_ai.* attribute names are imported from ``gateway.semconv``, never
+    from ``opentelemetry.semconv._incubating`` directly. This isolates the
+    metrics layer from Development-stability GenAI convention renames.
+    ``resolve_attrs()`` applies OTEL_SEMCONV_STABILITY_OPT_IN dual-emission
+    automatically during any migration window.
 
-    The ``llm_gateway.*`` attributes are custom to this application and use
-    a namespaced prefix to avoid collisions with standard attributes.
+    The ``llm_gateway.*`` attributes are custom to this application and stable.
     """
     # ── Shared dimension attributes ──────────────────────────────────────────
-    # These attributes appear on all four instruments to allow cross-metric
-    # correlation: "for /answer-routed calls to gpt-5-mini, what is the
-    # relationship between token usage and latency?"
-    base_attrs: dict[str, Any] = {
-        # gen_ai.system identifies the LLM provider — standard GenAI convention.
-        # Value "openai" comes from GenAiSystemValues.OPENAI.value.
-        GEN_AI_SYSTEM: GenAiSystemValues.OPENAI.value,
-        # gen_ai.operation.name identifies the type of LLM operation.
-        # "chat" is the standard value for conversational completions per spec.
-        GEN_AI_OPERATION_NAME: GenAiOperationNameValues.CHAT.value,
-        # gen_ai.request.model is the model name as requested — standard GenAI
-        # convention. We use "request" model (not "response" model) here because
-        # we always get the model we requested; if the provider serves a different
-        # model, that would be recorded as gen_ai.response.model on the span.
-        GEN_AI_REQUEST_MODEL: model,
-        # Custom: the gateway route that initiated this call.
+    # All four instruments share these base attributes for cross-metric correlation.
+    base_attrs: dict[str, Any] = resolve_attrs({
+        ATTR_GEN_AI_SYSTEM: VAL_GEN_AI_SYSTEM_OPENAI,
+        ATTR_GEN_AI_OPERATION_NAME: VAL_GEN_AI_OPERATION_CHAT,
+        ATTR_GEN_AI_REQUEST_MODEL: model,
         "llm_gateway.route": route,
-    }
+    })
 
     # ── gen_ai.client.operation.duration ────────────────────────────────────
-    # Spec requires unit "s" (seconds). Our latency_ms is milliseconds.
-    # Convert: 1 ms = 0.001 s.
-    # error.type is added only on failures — this matches the OTel spec which
-    # says error.type SHOULD be set on the span/metric only when an error occurs.
+    # error.type added only on failures per OTel spec.
     duration_attrs = dict(base_attrs)
     if status == "error" and error_type:
-        # error.type is a standard OTel attribute name (not gen_ai.* namespaced).
-        # It holds the error category string so backends can filter by error type.
         duration_attrs["error.type"] = error_type
 
     _operation_duration_histogram.record(
@@ -319,35 +305,34 @@ def _record_otel_metrics(
     )
 
     # ── gen_ai.client.token.usage ────────────────────────────────────────────
-    # The GenAI spec mandates recording input and output tokens as two separate
-    # histogram recordings distinguished by the gen_ai.token.type attribute.
-    # This allows backends to compute weighted cost without needing custom logic.
-    # Only record on success — on error, tokens_in / tokens_out are both 0
-    # (set by call_llm), which would pollute the histogram with zero-value bins.
+    # Two recordings (input + output) distinguished by gen_ai.token.type.
+    # Skipped on error because tokens_in/tokens_out are 0 and would pollute histograms.
     if status == "success":
-        token_base_attrs = dict(base_attrs)
-
         _token_usage_histogram.record(
             tokens_in,
-            attributes={**token_base_attrs, "gen_ai.token.type": GenAiTokenTypeValues.INPUT.value},
+            attributes=resolve_attrs({
+                **base_attrs,
+                ATTR_GEN_AI_TOKEN_TYPE: VAL_GEN_AI_TOKEN_TYPE_INPUT,
+                ATTR_GEN_AI_USAGE_INPUT_TOKENS: tokens_in,
+            }),
         )
         _token_usage_histogram.record(
             tokens_out,
-            attributes={**token_base_attrs, "gen_ai.token.type": GenAiTokenTypeValues.OUTPUT.value},
+            attributes=resolve_attrs({
+                **base_attrs,
+                ATTR_GEN_AI_TOKEN_TYPE: VAL_GEN_AI_TOKEN_TYPE_OUTPUT,
+                ATTR_GEN_AI_USAGE_OUTPUT_TOKENS: tokens_out,
+            }),
         )
 
     # ── llm_gateway.estimated_cost_usd ──────────────────────────────────────
-    # Counter addition. On error, estimated_cost_usd is 0.0 (set by call_llm),
-    # so adding 0.0 to the counter is a no-op in practice.
-    # We still call add() unconditionally because the request_counter below
-    # needs to know the model_tier, which is available in metadata.
     model_tier = (metadata or {}).get("routing_decision", "unknown")
 
     _cost_counter.add(
         estimated_cost_usd,
         attributes={
-            GEN_AI_SYSTEM: GenAiSystemValues.OPENAI.value,
-            GEN_AI_REQUEST_MODEL: model,
+            ATTR_GEN_AI_SYSTEM: VAL_GEN_AI_SYSTEM_OPENAI,
+            ATTR_GEN_AI_REQUEST_MODEL: model,
             "llm_gateway.route": route,
             "llm_gateway.model_tier": model_tier,
         },
@@ -424,5 +409,11 @@ def _write_jsonl_event(
     TELEMETRY_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     with TELEMETRY_PATH.open("a", encoding="utf-8") as fh:
+        # Advisory exclusive lock so concurrent uvicorn workers cannot interleave
+        # partial JSON lines. fcntl.LOCK_EX blocks until the lock is acquired;
+        # LOCK_UN is released automatically when the file handle is closed.
+        # This is a POSIX advisory lock — it does not prevent access from
+        # processes that do not also call fcntl.flock (e.g. log tailers).
+        fcntl.flock(fh, fcntl.LOCK_EX)
         json.dump(event, fh, ensure_ascii=False)
         fh.write("\n")
