@@ -2,34 +2,76 @@
 
 A minimal reference app for measuring, controlling, and reporting the operational cost behavior of LLM-based inference flows.
 
-This repository demonstrates three controlled LLM workflows that make cost, routing decisions, context growth, telemetry, and bounded regression detection inspectable.
+The repository demonstrates three controlled LLM workflows that make cost, routing decisions, context growth, telemetry, and bounded regression detection inspectable. OpenTelemetry instrumentation is a first-class concern — every LLM call produces both OTel spans/metrics and an append-only JSONL telemetry file.
+
+## Tech Stack
+
+| Layer | Package | Version |
+|---|---|---|
+| Web framework | `fastapi` | 0.134.0 |
+| ASGI server | `uvicorn[standard]` | 0.41.0 |
+| Data validation | `pydantic` | 2.12.5 |
+| LLM provider | `openai` | 2.24.0 |
+| Test runner | `pytest` | 9.0.2 |
+| OTel API/SDK | `opentelemetry-api/sdk` | 1.39.1 |
+| OTLP HTTP exporter | `opentelemetry-exporter-otlp-proto-http` | 1.39.1 |
+| FastAPI auto-instrumentation | `opentelemetry-instrumentation-fastapi` | 0.60b1 |
+| GenAI semantic conventions | `opentelemetry-semantic-conventions` | 0.60b1 |
 
 ## Setup
 
-Install dependencies:
+Install dependencies into a virtual environment:
 
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## End-to-End Workflow
+## Environment Variables
 
-The intended repository workflow is:
+### Required for live LLM calls
+
+```bash
+OPENAI_API_KEY="your_key_here"
+```
+
+Without a valid API key, requests to gateway-backed routes (`/answer-routed`, `/conversation-turn`) will fail.
+
+### OTel exporter (optional)
+
+| Variable | Default | Description |
+|---|---|---|
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | _(none — falls back to console)_ | OTLP HTTP collector URL (e.g. Grafana Cloud, Datadog, Jaeger) |
+| `OTEL_SDK_DISABLED` | `false` | Set `true` in CI to suppress OTel I/O |
+| `OTEL_SERVICE_NAME` | `llm-cost-control` | Reported service name in traces |
+| `OTEL_SERVICE_VERSION` | `0.1.0` | Reported service version |
+| `OTEL_DEPLOYMENT_ENVIRONMENT` | `development` | Deployment environment label |
+| `OTEL_METRIC_EXPORT_INTERVAL` | `30000` | Metric export interval in ms |
+
+### Gateway behavior (optional)
+
+| Variable | Default | Description |
+|---|---|---|
+| `RATE_LIMIT_RPM` | `60` | Requests per minute (not yet enforced) |
+| `MAX_CONTEXT_TOKENS` | `8192` | Maximum context tokens allowed |
+| `ROUTING_USE_EMBEDDINGS` | `true` | Enable embedding-based routing classifier (spec 013, not yet active) |
+
+## End-to-End Workflow
 
 1. Start the FastAPI app locally.
 2. Call routes to generate telemetry in `artifacts/logs/telemetry.jsonl`.
 3. Run eval runners to generate bounded regression artifacts in `artifacts/reports/`.
 4. Generate a markdown report from telemetry and eval artifacts.
 
-## Running the Reference App
-
-Start the app locally:
+## Running the App
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-The app will be available at `http://127.0.0.1:8000`.
+The app will be available at `http://127.0.0.1:8000`. Interactive API docs at `http://127.0.0.1:8000/docs`.
+
+On startup, `setup_otel()` configures the global `TracerProvider` and `MeterProvider`. `FastAPIInstrumentor` wraps every route handler in an OTel `SERVER` span. On shutdown, buffered spans and metrics are flushed before exit.
 
 ## Routes
 
@@ -37,17 +79,13 @@ The app will be available at `http://127.0.0.1:8000`.
 
 Classify message complexity and recommend a model tier.
 
-This route is local and deterministic. It does not call the gateway or the provider.
-
-Example request:
+This route is local and deterministic. It does not call the gateway or provider.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/classify-complexity \
   -H "Content-Type: application/json" \
   -d '{"message": "What is 2+2?"}'
 ```
-
-Expected response shape:
 
 ```json
 {
@@ -61,17 +99,13 @@ Expected response shape:
 
 Generate an answer using routing-based model selection.
 
-This route uses the routing service to choose a logical tier and then calls the gateway.
-
-Example request:
+Classifies the message locally, then calls the gateway with the resulting tier.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/answer-routed \
   -H "Content-Type: application/json" \
   -d '{"message": "Analyze the complex implications of quantum computing"}'
 ```
-
-Expected response shape:
 
 ```json
 {
@@ -85,9 +119,7 @@ Expected response shape:
 
 Process a conversation turn with context strategy application.
 
-This route prepares context locally and then calls the gateway.
-
-Example request:
+Prepares context locally using the requested strategy, then calls the gateway.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/conversation-turn \
@@ -100,8 +132,6 @@ curl -X POST http://127.0.0.1:8000/conversation-turn \
   }'
 ```
 
-Expected response shape:
-
 ```json
 {
   "answer": "string",
@@ -111,42 +141,64 @@ Expected response shape:
 }
 ```
 
-`context_tokens_used` is derived from the current deterministic token-estimation heuristic in `app/services/context_manager.py`.
+`context_tokens_used` is derived from the character-based token estimation heuristic in `app/services/context_manager.py`.
 
 ## Context Strategies
 
 The `/conversation-turn` route supports three context strategies:
 
 - `full`: include all conversation history
-- `sliding_window`: keep only the most recent bounded portion
-- `summarized`: use deterministic placeholder summarization for older history and keep recent messages verbatim
+- `sliding_window`: keep only the most recent 5 turns
+- `summarized`: deterministic placeholder summary for older history + last 5 turns verbatim
 
 ## Gateway
 
-The app uses a concrete OpenAI-backed gateway for gateway-backed routes.
+`gateway/client.py` is the single choke point for all LLM provider calls. Every call to `call_llm()`:
 
-Current gateway-backed routes:
+1. Looks up the route policy (`gateway/policies.py`) for model selection and retry configuration.
+2. Opens an OTel `CLIENT` span with GenAI semantic convention attributes (`gen_ai.system`, `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, etc.).
+3. Calls the OpenAI Responses API (`client.responses.create()`) with exponential-backoff retry.
+4. Estimates cost locally via the pricing snapshot in `gateway/cost_model.py`.
+5. Emits dual telemetry: OTel metrics (four instruments) + appends a JSON event to `artifacts/logs/telemetry.jsonl`.
 
-- `/answer-routed`
-- `/conversation-turn`
+### Models and pricing
 
-### Required environment variable for live gateway calls
+| Tier | Model | Input ($/1M tokens) | Output ($/1M tokens) |
+|---|---|---|---|
+| `cheap` | `gpt-5-mini` | $0.25 | $2.00 |
+| `expensive` | `gpt-5.2` | $1.75 | $14.00 |
 
-```bash
-export OPENAI_API_KEY="your_key_here"
+### Route policies
+
+Both gateway-backed routes use `max_output_tokens=500`, `retry_attempts=2`, `cache_enabled=False`.
+
+### OTel trace structure
+
+```
+POST /answer-routed  [kind=SERVER, FastAPIInstrumentor]
+  └── chat gpt-5-mini  [kind=CLIENT, gateway/client.py]
 ```
 
-Without a valid API key, live requests to gateway-backed routes will fail.
+### OTel metrics emitted per call
+
+| Instrument | Type | Description |
+|---|---|---|
+| `gen_ai.client.token.usage` | Histogram | Input and output token counts |
+| `gen_ai.client.operation.duration` | Histogram | Latency in seconds |
+| `llm_gateway.estimated_cost_usd` | Counter | Accumulated estimated USD cost |
+| `llm_gateway.requests` | Counter | Request count by status |
+
+If `OTEL_EXPORTER_OTLP_ENDPOINT` is set, spans and metrics are exported via OTLP HTTP/protobuf. Otherwise they fall back to the console exporter.
 
 ### Telemetry output
 
-Gateway telemetry is written as JSON lines to:
+Gateway telemetry is appended as JSON lines to:
 
 ```text
 artifacts/logs/telemetry.jsonl
 ```
 
-### Example telemetry event shape
+Example telemetry event:
 
 ```json
 {
@@ -188,7 +240,7 @@ It does not perform semantic evaluation, model-judge scoring, or open-ended qual
 
 ### Run evals
 
-Run the eval runners from repo root in module mode:
+Run eval runners from repo root in module mode:
 
 ```bash
 python3 -m evals.runners.run_classify_eval
@@ -196,36 +248,22 @@ python3 -m evals.runners.run_answer_routed_eval
 python3 -m evals.runners.run_conversation_turn_eval
 ```
 
-### Eval artifacts
+Use module execution (`-m`) — not direct script execution — to ensure consistent import resolution.
 
-Eval result files are written to:
-
-```text
-artifacts/reports/
-```
-
-Expected files:
-
-- `artifacts/reports/classify_eval_results.json`
-- `artifacts/reports/answer_routed_eval_results.json`
-- `artifacts/reports/conversation_turn_eval_results.json`
-
-### Important eval behavior
+### Eval behavior
 
 - `/classify-complexity` eval runs against the local deterministic route.
 - `/answer-routed` eval uses mocked gateway behavior by default.
 - `/conversation-turn` eval uses mocked gateway behavior by default.
 - Eval execution does not require `OPENAI_API_KEY`.
 
-## Notes on Execution
+### Eval artifacts
 
-Use module execution for eval runners:
-
-```bash
-python3 -m evals.runners.run_classify_eval
+```text
+artifacts/reports/classify_eval_results.json
+artifacts/reports/answer_routed_eval_results.json
+artifacts/reports/conversation_turn_eval_results.json
 ```
-
-Do not rely on direct script execution such as `python3 evals/runners/run_classify_eval.py`, because import resolution may differ depending on the current working path.
 
 ## Reporting
 
@@ -235,8 +273,6 @@ The reporting layer is downstream-only: it reads existing artifact files and doe
 
 ### Single-run report
 
-Generate a report from one telemetry snapshot:
-
 ```bash
 python3 -m reporting.make_report \
   --after-log artifacts/logs/telemetry.jsonl \
@@ -244,8 +280,6 @@ python3 -m reporting.make_report \
 ```
 
 ### Before/after comparison report
-
-Generate a report comparing two telemetry snapshots:
 
 ```bash
 python3 -m reporting.make_report \
@@ -256,8 +290,6 @@ python3 -m reporting.make_report \
 
 ### Include eval results
 
-Optionally include eval summaries in the report:
-
 ```bash
 python3 -m reporting.make_report \
   --after-log artifacts/logs/telemetry.jsonl \
@@ -267,56 +299,57 @@ python3 -m reporting.make_report \
   --output artifacts/reports/report.md
 ```
 
-### Report artifacts
+Reports include: per-route aggregate tables (p50/p95 latency, total cost, error rate), before/after delta comparison, Pareto cost/error analysis, eval summary, and rule-based recommendations.
 
-Generated reports are written to:
+## Scripts
 
-```text
-artifacts/reports/
-```
-
-Typical report outputs include:
-
-- `artifacts/reports/report.md`
-- `artifacts/reports/report_before_after.md`
-
-## Verification
-
-Run the following commands to verify the MVP from the routes, gateway, eval, and reporting layers.
-
-### Run eval runners
+Utility scripts in `scripts/` for load generation and benchmarking. Run from repo root:
 
 ```bash
-python3 -m evals.runners.run_classify_eval
-python3 -m evals.runners.run_answer_routed_eval
-python3 -m evals.runners.run_conversation_turn_eval
+python3 -m scripts.loadgen          # drive request volume to generate telemetry
+python3 -m scripts.benchmark_before_after  # capture before/after snapshots
+python3 -m scripts.make_report      # report generation shortcut
 ```
 
-### Run focused test modules
+## Tests
 
-```bash
-python3 -m pytest tests/test_routes.py -q
-python3 -m pytest tests/test_gateway.py -q
-python3 -m pytest tests/test_evals.py -q
-python3 -m pytest tests/test_reporting.py -q
-```
-
-### Run the full test suite
+Run the full test suite:
 
 ```bash
 python3 -m pytest tests/ -q
 ```
 
-## Main Artifact Paths
+Run focused test modules:
 
-Important generated artifact locations:
+```bash
+python3 -m pytest tests/test_routes.py -q       # route handlers (mocked gateway)
+python3 -m pytest tests/test_gateway.py -q      # cost model, policies, call_llm, error categorization
+python3 -m pytest tests/test_services.py -q     # routing heuristic, context strategies
+python3 -m pytest tests/test_evals.py -q        # eval datasets, assertion helpers, runner smoke tests
+python3 -m pytest tests/test_reporting.py -q    # telemetry normalization, aggregation, markdown rendering
+python3 -m pytest tests/test_schemas.py -q      # Pydantic schema validation
+```
 
-- `artifacts/logs/telemetry.jsonl`
-- `artifacts/reports/classify_eval_results.json`
-- `artifacts/reports/answer_routed_eval_results.json`
-- `artifacts/reports/conversation_turn_eval_results.json`
-- `artifacts/reports/report.md`
-- `artifacts/reports/report_before_after.md`
+Set `OTEL_SDK_DISABLED=true` to suppress OTel I/O during test runs.
+
+## Artifact Paths
+
+| Artifact | Path |
+|---|---|
+| Live telemetry | `artifacts/logs/telemetry.jsonl` |
+| Classify eval results | `artifacts/reports/classify_eval_results.json` |
+| Answer-routed eval results | `artifacts/reports/answer_routed_eval_results.json` |
+| Conversation-turn eval results | `artifacts/reports/conversation_turn_eval_results.json` |
+| Single-run report | `artifacts/reports/report.md` |
+| Before/after report | `artifacts/reports/report_before_after.md` |
+
+## Stub Modules
+
+The following modules are scaffolded but not yet implemented:
+
+- `gateway/cache.py` — semantic cache (exact SHA-256 lookup + cosine similarity layer)
+- `app/services/documents.py` — document store for retrieval
+- `app/services/retrieval.py` — retrieval service
 
 ## Scope Notes
 
@@ -331,4 +364,4 @@ It is not:
 - a dashboard product
 - a production SaaS system
 
-It is a small, inspectable engineering kit for controlled LLM route behavior, gateway-backed telemetry, bounded regression detection, and markdown reporting.
+It is a small, inspectable engineering kit for controlled LLM route behavior, gateway-backed telemetry (OTel + JSONL), bounded regression detection, and markdown reporting.
