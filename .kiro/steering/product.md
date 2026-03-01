@@ -81,7 +81,7 @@ The project is complete when all of the following are true:
 6. An open circuit returns HTTP 503 in < 50 ms without a provider call.
 7. Server-side conversation history is loaded on the second turn without client retransmission.
 8. Embedding-based classifier routes ≥ 90% of a held-out test set correctly.
-9. All 182+ tests pass. `ruff` and `mypy` pass on all modified files.
+9. All 192+ tests pass (236+ after full spec sequence). `ruff check`, `ruff format --check`, and `mypy` pass on all packages.
 10. A third party can clone, install, and run the full workload without manual intervention.
 
 ## Product boundaries — what requires explicit approval to add

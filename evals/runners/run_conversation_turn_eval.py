@@ -23,7 +23,6 @@ from evals.assertions.schema_checks import check_required_fields, check_response
 from evals.runners.common import load_jsonl_cases, utc_timestamp, write_eval_results
 from gateway.client import GatewayResult
 
-
 DATASET_PATH = Path("evals/datasets/conversation_turn_cases.jsonl")
 OUTPUT_PATH = Path("artifacts/reports/conversation_turn_eval_results.json")
 REQUIRED_FIELDS = ["answer", "turn_index", "context_tokens_used", "context_strategy_applied"]

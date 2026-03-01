@@ -1,6 +1,5 @@
 """Tests for health endpoints (/healthz, /readyz)."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 import app.routes.health as health_module

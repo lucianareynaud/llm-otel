@@ -4,7 +4,7 @@
 Run before starting any task:
 
 ```bash
-OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 159 tests, all passing
+OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 213 tests, all passing
 ```
 
 If any test fails, fix it before proceeding.
@@ -103,7 +103,7 @@ If any test fails, fix it before proceeding.
 
 ## Task 4 — Full verification
 
-- [ ] 4.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 167 tests
+- [ ] 4.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 221 tests
 - [ ] 4.2 Manual: force circuit open, send request to `/answer-routed`, measure response time < 50 ms
 - [ ] 4.3 `ruff check gateway/circuit_breaker.py gateway/client.py` — zero errors
 
@@ -116,5 +116,5 @@ This spec is complete when:
 - `circuit_check()` raises `CircuitOpenError` after threshold failures
 - HTTP 503 is returned immediately (no provider call) when circuit is open
 - `llm_gateway.circuit_state` span attribute is set on every request
-- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 167 tests, all passing
+- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 221 tests, all passing
 - Circuit breaker state is never modified from outside `gateway/circuit_breaker.py`

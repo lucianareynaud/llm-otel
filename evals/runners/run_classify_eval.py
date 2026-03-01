@@ -14,7 +14,6 @@ from app.main import app
 from evals.assertions.schema_checks import check_required_fields, check_response_size
 from evals.runners.common import load_jsonl_cases, utc_timestamp, write_eval_results
 
-
 DATASET_PATH = Path("evals/datasets/classify_cases.jsonl")
 OUTPUT_PATH = Path("artifacts/reports/classify_eval_results.json")
 REQUIRED_FIELDS = ["complexity", "recommended_tier", "needs_escalation"]

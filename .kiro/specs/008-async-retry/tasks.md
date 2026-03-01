@@ -4,7 +4,7 @@
 Run before starting any task:
 
 ```bash
-OTEL_SDK_DISABLED=true pytest tests/ -v  # must report ≥ 147 tests, all passing
+OTEL_SDK_DISABLED=true pytest tests/ -v  # must report ≥ 201 tests, all passing
 ```
 
 If any test fails, fix it before proceeding.
@@ -106,7 +106,7 @@ If any test fails, fix it before proceeding.
 - [ ] 7.3 `grep "async def call_llm" gateway/client.py` — one match
 - [ ] 7.4 `grep "async def answer_routed" app/routes/answer_routed.py` — one match
 - [ ] 7.5 `grep "async def conversation_turn" app/routes/conversation_turn.py` — one match
-- [ ] 7.6 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 147 tests
+- [ ] 7.6 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 201 tests
 
 **Acceptance**: All structural checks pass. Full test suite green.
 
@@ -119,5 +119,5 @@ This spec is complete when:
 - `call_llm` and `_call_provider` are `async def`
 - Both LLM-calling route handlers are `async def`
 - `AsyncOpenAI` is the provider client
-- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 147 tests, all passing
+- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 201 tests, all passing
 - `ruff check` and `mypy` pass on all modified files

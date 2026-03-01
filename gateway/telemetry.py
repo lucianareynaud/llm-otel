@@ -44,7 +44,7 @@ from __future__ import annotations
 import fcntl
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -57,6 +57,8 @@ from gateway.semconv import (
     ATTR_GEN_AI_TOKEN_TYPE,
     ATTR_GEN_AI_USAGE_INPUT_TOKENS,
     ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
+    METRIC_OPERATION_DURATION,
+    METRIC_TOKEN_USAGE,
     VAL_GEN_AI_OPERATION_CHAT,
     VAL_GEN_AI_SYSTEM_OPENAI,
     VAL_GEN_AI_TOKEN_TYPE_INPUT,
@@ -113,7 +115,7 @@ _meter = metrics.get_meter("llm_gateway", version="0.1.0")
 # Unit "{token}" follows the OTel convention for dimensionless counts of
 # domain-specific items (curly-braces notation = custom units).
 _token_usage_histogram = _meter.create_histogram(
-    name="gen_ai.client.token.usage",
+    name=METRIC_TOKEN_USAGE,
     unit="{token}",
     description=(
         "Measures number of input and output tokens used per LLM call. "
@@ -132,7 +134,7 @@ _token_usage_histogram = _meter.create_histogram(
 # the true wall-clock latency experienced by the caller, which is the metric
 # that matters for SLO compliance.
 _operation_duration_histogram = _meter.create_histogram(
-    name="gen_ai.client.operation.duration",
+    name=METRIC_OPERATION_DURATION,
     unit="s",
     description=(
         "Measures end-to-end wall-clock duration of LLM operations including "
@@ -286,12 +288,14 @@ def _record_otel_metrics(
     """
     # ── Shared dimension attributes ──────────────────────────────────────────
     # All four instruments share these base attributes for cross-metric correlation.
-    base_attrs: dict[str, Any] = resolve_attrs({
-        ATTR_GEN_AI_SYSTEM: VAL_GEN_AI_SYSTEM_OPENAI,
-        ATTR_GEN_AI_OPERATION_NAME: VAL_GEN_AI_OPERATION_CHAT,
-        ATTR_GEN_AI_REQUEST_MODEL: model,
-        "llm_gateway.route": route,
-    })
+    base_attrs: dict[str, Any] = resolve_attrs(
+        {
+            ATTR_GEN_AI_SYSTEM: VAL_GEN_AI_SYSTEM_OPENAI,
+            ATTR_GEN_AI_OPERATION_NAME: VAL_GEN_AI_OPERATION_CHAT,
+            ATTR_GEN_AI_REQUEST_MODEL: model,
+            "llm_gateway.route": route,
+        }
+    )
 
     # ── gen_ai.client.operation.duration ────────────────────────────────────
     # error.type added only on failures per OTel spec.
@@ -310,19 +314,23 @@ def _record_otel_metrics(
     if status == "success":
         _token_usage_histogram.record(
             tokens_in,
-            attributes=resolve_attrs({
-                **base_attrs,
-                ATTR_GEN_AI_TOKEN_TYPE: VAL_GEN_AI_TOKEN_TYPE_INPUT,
-                ATTR_GEN_AI_USAGE_INPUT_TOKENS: tokens_in,
-            }),
+            attributes=resolve_attrs(
+                {
+                    **base_attrs,
+                    ATTR_GEN_AI_TOKEN_TYPE: VAL_GEN_AI_TOKEN_TYPE_INPUT,
+                    ATTR_GEN_AI_USAGE_INPUT_TOKENS: tokens_in,
+                }
+            ),
         )
         _token_usage_histogram.record(
             tokens_out,
-            attributes=resolve_attrs({
-                **base_attrs,
-                ATTR_GEN_AI_TOKEN_TYPE: VAL_GEN_AI_TOKEN_TYPE_OUTPUT,
-                ATTR_GEN_AI_USAGE_OUTPUT_TOKENS: tokens_out,
-            }),
+            attributes=resolve_attrs(
+                {
+                    **base_attrs,
+                    ATTR_GEN_AI_TOKEN_TYPE: VAL_GEN_AI_TOKEN_TYPE_OUTPUT,
+                    ATTR_GEN_AI_USAGE_OUTPUT_TOKENS: tokens_out,
+                }
+            ),
         )
 
     # ── llm_gateway.estimated_cost_usd ──────────────────────────────────────
@@ -386,7 +394,7 @@ def _write_jsonl_event(
     (see module top) so it is stable regardless of process CWD.
     """
     event: dict[str, Any] = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "request_id": request_id,
         "route": route,
         "provider": provider,

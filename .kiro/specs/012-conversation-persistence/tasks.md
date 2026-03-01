@@ -4,7 +4,7 @@
 Run before starting any task:
 
 ```bash
-OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 167 tests, all passing
+OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 221 tests, all passing
 ```
 
 If any test fails, fix it before proceeding.
@@ -132,7 +132,7 @@ If any test fails, fix it before proceeding.
 
 ## Task 6 — Full verification
 
-- [ ] 6.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 176 tests
+- [ ] 6.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 230 tests
 - [ ] 6.2 `ruff check app/services/conversation_store.py app/routes/conversation_turn.py` — zero errors
 - [ ] 6.3 Confirm: `redis` import only happens inside `RedisConversationStore.__init__` — not at module level
 - [ ] 6.4 Confirm: `python -c "from app.services.conversation_store import get_conversation_store"` succeeds
@@ -147,5 +147,5 @@ This spec is complete when:
 - A second call to `/conversation-turn` with the same `conversation_id` and empty `history` returns context from server-side storage
 - `InMemoryConversationStore` is the default backend when `REDIS_URL` is not set
 - `redis` is not imported at module level
-- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 176 tests, all passing
+- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 230 tests, all passing
 - The `/conversation-turn` schema is unchanged

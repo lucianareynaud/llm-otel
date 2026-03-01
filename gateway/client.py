@@ -164,19 +164,20 @@ def call_llm(
     span_name = f"{VAL_GEN_AI_OPERATION_CHAT} {selected_model}"
 
     with _tracer.start_as_current_span(span_name, kind=SpanKind.CLIENT) as span:
-
         # ── Span attributes set at call start ────────────────────────────────
         # GenAI attributes are set through gateway.semconv constants (never
         # imported from opentelemetry.semconv._incubating directly). This
         # isolates the codebase from Development-stability attribute renames.
         # resolve_attrs() applies OTEL_SEMCONV_STABILITY_OPT_IN dual-emission
         # when _PENDING_RENAMES is non-empty during a migration window.
-        request_attrs = resolve_attrs({
-            ATTR_GEN_AI_SYSTEM: VAL_GEN_AI_SYSTEM_OPENAI,
-            ATTR_GEN_AI_OPERATION_NAME: VAL_GEN_AI_OPERATION_CHAT,
-            ATTR_GEN_AI_REQUEST_MODEL: selected_model,
-            ATTR_GEN_AI_REQUEST_MAX_TOKENS: policy.max_output_tokens,
-        })
+        request_attrs = resolve_attrs(
+            {
+                ATTR_GEN_AI_SYSTEM: VAL_GEN_AI_SYSTEM_OPENAI,
+                ATTR_GEN_AI_OPERATION_NAME: VAL_GEN_AI_OPERATION_CHAT,
+                ATTR_GEN_AI_REQUEST_MODEL: selected_model,
+                ATTR_GEN_AI_REQUEST_MAX_TOKENS: policy.max_output_tokens,
+            }
+        )
         for key, value in request_attrs.items():
             span.set_attribute(key, value)
 
@@ -201,10 +202,12 @@ def call_llm(
             estimated_cost_usd = estimate_cost(selected_model, tokens_in, tokens_out)
 
             # ── Span attributes set on success ────────────────────────────────
-            usage_attrs = resolve_attrs({
-                ATTR_GEN_AI_USAGE_INPUT_TOKENS: tokens_in,
-                ATTR_GEN_AI_USAGE_OUTPUT_TOKENS: tokens_out,
-            })
+            usage_attrs = resolve_attrs(
+                {
+                    ATTR_GEN_AI_USAGE_INPUT_TOKENS: tokens_in,
+                    ATTR_GEN_AI_USAGE_OUTPUT_TOKENS: tokens_out,
+                }
+            )
             for key, value in usage_attrs.items():
                 span.set_attribute(key, value)
 

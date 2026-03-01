@@ -22,12 +22,14 @@ The repository demonstrates three controlled LLM workflows that make cost, routi
 
 ## Setup
 
-Install dependencies into a virtual environment:
+Install the project and all development dependencies into a virtual environment:
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
+
+This installs the project in editable mode from `pyproject.toml` (which supersedes `requirements.txt`) along with `pytest`, `ruff`, and `mypy` via the `dev` extras.
 
 ## Environment Variables
 
@@ -49,7 +51,7 @@ Without a valid API key, requests to gateway-backed routes (`/answer-routed`, `/
 | `OTEL_SERVICE_VERSION` | `0.1.0` | Reported service version |
 | `OTEL_DEPLOYMENT_ENVIRONMENT` | `development` | Deployment environment label |
 | `OTEL_METRIC_EXPORT_INTERVAL` | `30000` | Metric export interval in ms |
-| `OTEL_SEMCONV_STABILITY_OPT_IN` | _(not set)_ | GenAI convention migration mode: `genai` (new names only) or `genai/dup` (old + new) |
+| `OTEL_SEMCONV_STABILITY_OPT_IN` | _(not set)_ | GenAI convention migration mode: `gen_ai_latest_experimental` (new names only) or `gen_ai_latest_experimental/dup` (old + new simultaneously) |
 
 ### Gateway behavior (optional)
 
@@ -322,22 +324,26 @@ The GenAI semantic conventions (`gen_ai.*` attribute names) are at [Development 
 
 **`gateway/semconv.py`** is the single source of truth for all `gen_ai.*` attribute strings. `client.py` and `telemetry.py` import constants from here — never from `opentelemetry.semconv._incubating` directly.
 
-**`_PENDING_RENAMES`** in `gateway/semconv.py` is currently empty. When a rename is finalized in the spec, add one entry:
+**`_PENDING_RENAMES`** in `gateway/semconv.py` contains the **active** migration from the v1.36.0 legacy name to the current spec-required name:
 
 ```python
-_PENDING_RENAMES = {"gen_ai.system": "gen_ai.provider.name"}
+_PENDING_RENAMES = {
+    "gen_ai.system": "gen_ai.provider.name",  # v1.36.0 → latest experimental
+}
 ```
 
-**`resolve_attrs()`** then handles the `OTEL_SEMCONV_STABILITY_OPT_IN` opt-in migration automatically:
+The [current OpenAI semconv spec](https://opentelemetry.io/docs/specs/semconv/gen-ai/openai/) states `gen_ai.provider.name` MUST be set to `"openai"`. The v1.36.0 name `gen_ai.system` is the default for backward compatibility with backends that have not yet migrated.
+
+**`resolve_attrs()`** applies the `OTEL_SEMCONV_STABILITY_OPT_IN` opt-in flag:
 
 | `OTEL_SEMCONV_STABILITY_OPT_IN` | Behavior |
 |---|---|
-| _(not set)_ | Emit current attribute names unchanged |
-| `genai/dup` | Emit both old and new names simultaneously — use during migration window so dashboards built on either name continue working |
-| `genai` | Emit only new names — use once migration is complete |
-| `http,genai/dup` | Comma-separated tokens for multiple semconv families are supported |
+| _(not set)_ | Emit v1.36.0 names only (`gen_ai.system = "openai"`) — default, backward-compatible |
+| `gen_ai_latest_experimental/dup` | Emit **both** legacy and new names simultaneously — use during migration window |
+| `gen_ai_latest_experimental` | Emit only the new name (`gen_ai.provider.name = "openai"`) — use once migration is complete |
+| `http,gen_ai_latest_experimental/dup` | Comma-separated tokens for multiple semconv families are supported |
 
-This mechanism is live and tested. Upgrading to a new convention version is a one-line change to `_PENDING_RENAMES`.
+This mechanism is live and fully tested (`tests/test_semconv.py`). Adding a future rename is a one-line change to `_PENDING_RENAMES`.
 
 ## Tests
 
@@ -362,19 +368,22 @@ OTEL_SDK_DISABLED=true python3 -m pytest tests/test_semconv.py -q   # semconv co
 
 ## Linting and Type Checking
 
+The exact local gate that CI enforces:
+
 ```bash
 python3 -m ruff check .
-python3 -m mypy app/ gateway/ --ignore-missing-imports
+python3 -m ruff format --check .
+python3 -m mypy app/ gateway/ evals/ reporting/ --ignore-missing-imports
 ```
 
-Configuration lives in `pyproject.toml`. Both checks run in CI on every push.
+Configuration lives in `pyproject.toml`. All three checks run in CI on every push and pull request. A PR that fails any check is blocked from merging.
 
 ## CI
 
 | Workflow | Trigger | Steps |
 |---|---|---|
-| `ci.yml` | push / pull_request | ruff → mypy → pytest |
-| `regression.yml` | push to main | all three eval runners → fail if any `failed > 0` |
+| `ci.yml` | push / pull_request | ruff lint → ruff format check → mypy → pytest |
+| `regression.yml` | push to main / workflow_dispatch | all three eval runners → fail if any `failed > 0` |
 
 No secrets are required in CI. Eval runners mock the gateway and do not call OpenAI.
 

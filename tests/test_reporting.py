@@ -134,7 +134,7 @@ class TestLoadJsonlTelemetry:
     def test_load_valid_jsonl(self, tmp_path: Path):
         file_path = tmp_path / "telemetry.jsonl"
         file_path.write_text(
-            '\n'.join(
+            "\n".join(
                 [
                     json.dumps(
                         {
@@ -171,7 +171,7 @@ class TestLoadJsonlTelemetry:
     def test_load_jsonl_ignores_empty_lines(self, tmp_path: Path):
         file_path = tmp_path / "telemetry.jsonl"
         file_path.write_text(
-            '\n'.join(
+            "\n".join(
                 [
                     "",
                     json.dumps(
@@ -198,11 +198,13 @@ class TestLoadJsonlTelemetry:
     def test_load_jsonl_counts_invalid_json_as_malformed(self, tmp_path: Path):
         file_path = tmp_path / "telemetry.jsonl"
         file_path.write_text(
-            '\n'.join(
+            "\n".join(
                 [
-                    '{"route": "/x", "latency_ms": 10.0, "estimated_cost_usd": 0.1, "status": "success", "schema_valid": true}',
+                    '{"route": "/x", "latency_ms": 10.0, "estimated_cost_usd": 0.1,'
+                    ' "status": "success", "schema_valid": true}',
                     '{"route": "/bad", "latency_ms": ',
-                    '{"route": "/y", "latency_ms": 20.0, "estimated_cost_usd": 0.2, "status": "error", "schema_valid": false}',
+                    '{"route": "/y", "latency_ms": 20.0, "estimated_cost_usd": 0.2,'
+                    ' "status": "error", "schema_valid": false}',
                 ]
             ),
             encoding="utf-8",
@@ -216,7 +218,7 @@ class TestLoadJsonlTelemetry:
     def test_load_jsonl_counts_missing_required_fields_as_malformed(self, tmp_path: Path):
         file_path = tmp_path / "telemetry.jsonl"
         file_path.write_text(
-            '\n'.join(
+            "\n".join(
                 [
                     json.dumps(
                         {
@@ -248,7 +250,7 @@ class TestLoadJsonlTelemetry:
     def test_load_jsonl_counts_invalid_field_types_as_malformed(self, tmp_path: Path):
         file_path = tmp_path / "telemetry.jsonl"
         file_path.write_text(
-            '\n'.join(
+            "\n".join(
                 [
                     json.dumps(
                         {

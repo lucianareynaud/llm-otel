@@ -38,7 +38,9 @@ class TestDatasetLoading:
     """Tests for JSONL dataset loading."""
 
     def test_load_valid_jsonl(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8") as file_handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as file_handle:
             file_handle.write('{"id": "case_001", "input": {"message": "test"}}\n')
             file_handle.write('{"id": "case_002", "input": {"message": "test2"}}\n')
             temp_path = file_handle.name
@@ -52,7 +54,9 @@ class TestDatasetLoading:
             os.unlink(temp_path)
 
     def test_load_empty_lines_ignored(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8") as file_handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as file_handle:
             file_handle.write('{"id": "case_001"}\n')
             file_handle.write("\n")
             file_handle.write('{"id": "case_002"}\n')
@@ -82,7 +86,7 @@ class TestResultWriting:
             write_eval_results(output_path, payload)
 
             assert os.path.exists(output_path)
-            with open(output_path, "r", encoding="utf-8") as file_handle:
+            with open(output_path, encoding="utf-8") as file_handle:
                 loaded = json.load(file_handle)
 
             assert loaded["route"] == "/test"
@@ -276,25 +280,29 @@ class TestRunnerSmoke:
     """Small smoke tests for runner execution."""
 
     def test_run_classify_eval_smoke(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8") as file_handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as file_handle:
             file_handle.write(
                 '{"id": "test_001", "input": {"message": "What is 2+2?"}, '
-                '"expected": {"complexity": "simple", "recommended_tier": "cheap", "needs_escalation": false}}\n'
+                '"expected": {"complexity": "simple", "recommended_tier": "cheap",'
+                ' "needs_escalation": false}}\n'
             )
             temp_dataset = file_handle.name
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = os.path.join(tmpdir, "classify_results.json")
 
-            with patch("evals.runners.run_classify_eval.DATASET_PATH", temp_dataset), patch(
-                "evals.runners.run_classify_eval.OUTPUT_PATH", output_path
+            with (
+                patch("evals.runners.run_classify_eval.DATASET_PATH", temp_dataset),
+                patch("evals.runners.run_classify_eval.OUTPUT_PATH", output_path),
             ):
                 exit_code = run_classify_eval()
 
             assert exit_code == 0
             assert os.path.exists(output_path)
 
-            with open(output_path, "r", encoding="utf-8") as file_handle:
+            with open(output_path, encoding="utf-8") as file_handle:
                 payload = json.load(file_handle)
 
             assert payload["route"] == "/classify-complexity"
@@ -305,7 +313,9 @@ class TestRunnerSmoke:
         os.unlink(temp_dataset)
 
     def test_run_answer_routed_eval_smoke(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8") as file_handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as file_handle:
             file_handle.write(
                 '{"id": "test_001", "input": {"message": "What is 2+2?"}, '
                 '"expected": {"routing_decision": "cheap", "min_answer_length": 1}}\n'
@@ -315,15 +325,16 @@ class TestRunnerSmoke:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = os.path.join(tmpdir, "answer_routed_results.json")
 
-            with patch("evals.runners.run_answer_routed_eval.DATASET_PATH", temp_dataset), patch(
-                "evals.runners.run_answer_routed_eval.OUTPUT_PATH", output_path
+            with (
+                patch("evals.runners.run_answer_routed_eval.DATASET_PATH", temp_dataset),
+                patch("evals.runners.run_answer_routed_eval.OUTPUT_PATH", output_path),
             ):
                 exit_code = run_answer_routed_eval()
 
             assert exit_code == 0
             assert os.path.exists(output_path)
 
-            with open(output_path, "r", encoding="utf-8") as file_handle:
+            with open(output_path, encoding="utf-8") as file_handle:
                 payload = json.load(file_handle)
 
             assert payload["route"] == "/answer-routed"
@@ -334,26 +345,31 @@ class TestRunnerSmoke:
         os.unlink(temp_dataset)
 
     def test_run_conversation_turn_eval_smoke(self):
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False, encoding="utf-8") as file_handle:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, encoding="utf-8"
+        ) as file_handle:
             file_handle.write(
-                '{"id": "test_001", "input": {"conversation_id": "conv_001", "message": "Hello", '
-                '"history": [], "context_strategy": "full"}, '
-                '"expected": {"context_strategy_applied": "full", "min_answer_length": 1, "turn_index": 0}}\n'
+                '{"id": "test_001", "input": {"conversation_id": "conv_001",'
+                ' "message": "Hello", "history": [], "context_strategy": "full"},'
+                ' "expected": {"context_strategy_applied": "full",'
+                ' "min_answer_length": 1, "turn_index": 0}}\n'
             )
             temp_dataset = file_handle.name
 
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = os.path.join(tmpdir, "conversation_turn_results.json")
 
-            with patch("evals.runners.run_conversation_turn_eval.DATASET_PATH", temp_dataset), patch(
-                "evals.runners.run_conversation_turn_eval.OUTPUT_PATH", output_path
+            module = "evals.runners.run_conversation_turn_eval"
+            with (
+                patch(f"{module}.DATASET_PATH", temp_dataset),
+                patch(f"{module}.OUTPUT_PATH", output_path),
             ):
                 exit_code = run_conversation_turn_eval()
 
             assert exit_code == 0
             assert os.path.exists(output_path)
 
-            with open(output_path, "r", encoding="utf-8") as file_handle:
+            with open(output_path, encoding="utf-8") as file_handle:
                 payload = json.load(file_handle)
 
             assert payload["route"] == "/conversation-turn"

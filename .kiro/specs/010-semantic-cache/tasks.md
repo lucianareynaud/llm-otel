@@ -4,7 +4,7 @@
 Run before starting any task:
 
 ```bash
-OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 151 tests, all passing
+OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 205 tests, all passing
 grep "CHARS_PER_TOKEN" .                  # must return zero matches
 ```
 
@@ -120,7 +120,7 @@ Both must pass before proceeding.
 
 ## Task 7 — Full verification
 
-- [ ] 7.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 159 tests
+- [ ] 7.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 213 tests
 - [ ] 7.2 `ruff check gateway/cache.py gateway/client.py gateway/telemetry.py` — zero errors
 - [ ] 7.3 Verify JSONL telemetry: after a cache hit, `artifacts/logs/telemetry.jsonl` contains a record
   with `"cache_hit": true` and `"estimated_cost_usd": 0.0`
@@ -134,5 +134,5 @@ This spec is complete when:
 - `gateway/cache.py` is fully implemented (not empty)
 - A second identical prompt to `/answer-routed` does not call `_call_provider`
 - `cache_hit=True` and `estimated_cost_usd=0.0` appear in telemetry for cache hits
-- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 159 tests, all passing
+- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 213 tests, all passing
 - No route handler imports from `gateway.cache` directly

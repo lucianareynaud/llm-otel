@@ -6,30 +6,40 @@
 - Pydantic v2 for request/response contracts and data validation.
 - `AsyncOpenAI` for all provider calls. Never use the synchronous `OpenAI` client.
 
-## Linting and type checking
+## Linting, formatting, and type checking
 Run before every commit and in CI:
 ```bash
 ruff check .
-mypy app/ gateway/ --ignore-missing-imports
+ruff format --check .
+mypy app/ gateway/ evals/ reporting/ --ignore-missing-imports
 ```
 
-Both must exit zero. A PR that fails either check is blocked from merging.
+All three must exit zero. A PR that fails any check is blocked from merging.
 
 Ruff configuration (`pyproject.toml`):
 ```toml
 [tool.ruff]
 line-length = 100
-select = ["E", "F", "I", "UP"]
+select = ["E", "F", "I", "UP", "W", "B", "C4"]
+ignore = ["B008", "B904"]
 exclude = [".venv", ".git", "__pycache__", "artifacts"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 ```
 
 Mypy configuration (`pyproject.toml`):
 ```toml
 [tool.mypy]
 python_version = "3.11"
+packages = ["app", "gateway", "evals", "reporting"]
 ignore_missing_imports = true
 warn_return_any = true
 warn_unused_ignores = true
+warn_unused_configs = true
+no_implicit_optional = true
+strict_equality = true
 ```
 
 ## Async rules

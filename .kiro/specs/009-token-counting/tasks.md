@@ -4,7 +4,7 @@
 Run before starting any task:
 
 ```bash
-OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 147 tests, all passing
+OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 201 tests, all passing
 grep "async def call_llm" gateway/client.py  # must match
 ```
 
@@ -137,7 +137,7 @@ Both must pass before proceeding.
 - [ ] 7.1 `grep "CHARS_PER_TOKEN" .` — zero matches across the entire repo
 - [ ] 7.2 `grep "_estimate_tokens" .` — zero matches
 - [ ] 7.3 `grep "tiktoken" app/services/context_manager.py` — zero matches (it's only in `token_counter.py`)
-- [ ] 7.4 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 151 tests
+- [ ] 7.4 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 205 tests
 - [ ] 7.5 `ruff check app/services/` — zero errors
 - [ ] 7.6 `mypy app/services/ --ignore-missing-imports` — zero errors
 
@@ -151,4 +151,4 @@ This spec is complete when:
 - `count_tokens` uses tiktoken BPE encoding
 - `ContextTooLargeError` is raised and caught with HTTP 400
 - All token count assertions in tests use exact tiktoken values
-- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 151 tests, all passing
+- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 205 tests, all passing

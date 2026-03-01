@@ -218,9 +218,7 @@ def setup_otel() -> None:
     # batches. This is always preferred over SimpleSpanProcessor in production
     # because it decouples span export I/O from the request hot path.
     _tracer_provider = TracerProvider(resource=resource)
-    _tracer_provider.add_span_processor(
-        BatchSpanProcessor(_build_span_exporter())
-    )
+    _tracer_provider.add_span_processor(BatchSpanProcessor(_build_span_exporter()))
     # Register as global. Any call to ``trace.get_tracer()`` anywhere in this
     # process now returns a tracer backed by this provider.
     trace.set_tracer_provider(_tracer_provider)

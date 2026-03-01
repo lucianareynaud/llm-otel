@@ -14,7 +14,6 @@ from fastapi.testclient import TestClient
 from app.main import app
 from gateway.client import GatewayResult
 
-
 client = TestClient(app)
 
 
@@ -51,7 +50,10 @@ class TestClassifyComplexityRoute:
         response = client.post(
             "/classify-complexity",
             json={
-                "message": "Can you help me understand how photosynthesis works in plants and why light matters?"
+                "message": (
+                    "Can you help me understand how photosynthesis works"
+                    " in plants and why light matters?"
+                )
             },
         )
 

@@ -94,7 +94,7 @@ spec-007: add APIKeyMiddleware and RateLimitMiddleware
 - tests/test_rate_limit.py: 4 tests covering limits and per-key isolation
 - tests/test_routes.py: added X-API-Key header to all existing fixtures
 
-All 147 tests pass. ruff and mypy clean.
+All 192 tests pass (hardening baseline). ruff, ruff format, and mypy clean.
 ```
 
 ## CI requirements
@@ -102,7 +102,8 @@ All 147 tests pass. ruff and mypy clean.
 Every commit that modifies source files must pass locally before pushing:
 ```bash
 ruff check .
-mypy app/ gateway/ --ignore-missing-imports
+ruff format --check .
+mypy app/ gateway/ evals/ reporting/ --ignore-missing-imports
 OTEL_SDK_DISABLED=true pytest tests/ -v
 ```
 
@@ -137,8 +138,9 @@ A task is complete only when:
 1. All sub-task checkboxes in `tasks.md` are satisfied
 2. The task's `**Acceptance**` check passes
 3. `OTEL_SDK_DISABLED=true pytest tests/ -v` passes (all tests, not just new ones)
-4. `ruff check` passes on all modified files
-5. `mypy` passes on all modified files
+4. `ruff check .` exits zero
+5. `ruff format --check .` exits zero
+6. `mypy app/ gateway/ evals/ reporting/ --ignore-missing-imports` exits zero
 
 ## Definition of done for a spec
 A spec is complete only when:
@@ -149,13 +151,14 @@ A spec is complete only when:
 4. A commit has been created with a descriptive message
 
 ## Definition of done for the full production-readiness sequence
-All of specs 005–013 are complete and:
-1. `OTEL_SDK_DISABLED=true pytest tests/ -v` reports 182+ tests, all passing
+All of specs 007–013 are complete and:
+1. `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 236 tests, all passing
 2. `ruff check .` exits zero
-3. `mypy app/ gateway/ --ignore-missing-imports` exits zero
-4. With `OPENAI_API_KEY` and `APP_API_KEY` set, the app starts and serves real requests
-5. `GET /healthz` returns 200 without authentication
-6. CI workflow passes on a clean push
+3. `ruff format --check .` exits zero
+4. `mypy app/ gateway/ evals/ reporting/ --ignore-missing-imports` exits zero
+5. With `OPENAI_API_KEY` and `APP_API_KEY` set, the app starts and serves real requests
+6. `GET /healthz` returns 200 without authentication
+7. CI workflow passes on a clean push
 
 ## Final rule
 Move only when the current spec is demonstrably complete.

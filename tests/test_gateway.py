@@ -24,10 +24,10 @@ import pytest
 from gateway import cost_model, policies
 from gateway.client import GatewayResult, _categorize_error, _is_retryable, call_llm
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Test helpers for constructing OpenAI exceptions
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _make_response(status_code: int) -> httpx.Response:
     """Build a minimal fake httpx.Response for OpenAI exception constructors.

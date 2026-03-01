@@ -18,8 +18,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -62,7 +62,7 @@ REQUIRED_NORMALIZED_FIELDS = {
 
 def utc_timestamp() -> str:
     """Return the current UTC timestamp in ISO-8601 format."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def parse_args() -> argparse.Namespace:
@@ -319,7 +319,9 @@ def aggregate_metrics(rows: list[NormalizedTelemetryRow]) -> AggregateMetrics:
     )
 
 
-def group_rows_by_route(rows: list[NormalizedTelemetryRow]) -> dict[str, list[NormalizedTelemetryRow]]:
+def group_rows_by_route(
+    rows: list[NormalizedTelemetryRow],
+) -> dict[str, list[NormalizedTelemetryRow]]:
     """Group normalized telemetry rows by route."""
     grouped: dict[str, list[NormalizedTelemetryRow]] = {}
     for row in rows:
@@ -364,7 +366,8 @@ def _fmt_float(value: float, decimals: int = 4) -> str:
 def _route_table_lines(route_metrics: dict[str, AggregateMetrics]) -> list[str]:
     """Render a markdown table for per-route aggregates."""
     lines = [
-        "| Route | Request Count | Latency P50 (ms) | Latency P95 (ms) | Total Cost (USD) | Avg Cost (USD) | Error Rate | Schema-Valid Rate |",
+        "| Route | Request Count | Latency P50 (ms) | Latency P95 (ms)"
+        " | Total Cost (USD) | Avg Cost (USD) | Error Rate | Schema-Valid Rate |",
         "|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
 
@@ -393,7 +396,8 @@ def _delta_table_lines(
     all_routes = sorted(set(before_by_route.keys()) | set(after_by_route.keys()))
 
     lines = [
-        "| Route | Request Δ | P50 Δ (ms) | P95 Δ (ms) | Total Cost Δ (USD) | Avg Cost Δ (USD) | Error Rate Δ |",
+        "| Route | Request Δ | P50 Δ (ms) | P95 Δ (ms)"
+        " | Total Cost Δ (USD) | Avg Cost Δ (USD) | Error Rate Δ |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
 
@@ -416,7 +420,9 @@ def _delta_table_lines(
     return lines
 
 
-def _eval_summary_lines(eval_payloads: dict[str, dict[str, Any] | None]) -> tuple[list[str], list[str]]:
+def _eval_summary_lines(
+    eval_payloads: dict[str, dict[str, Any] | None],
+) -> tuple[list[str], list[str]]:
     """Render eval summary lines and collect missing coverage labels."""
     lines: list[str] = []
     missing_coverage: list[str] = []
@@ -478,7 +484,8 @@ def _pareto_lines(route_metrics: dict[str, AggregateMetrics]) -> list[str]:
     lines.append("### Highest Error Burden Routes")
     for route, metrics in by_error:
         lines.append(
-            f"- `{route}` — error count {metrics.error_count}, error rate {_fmt_float(metrics.error_rate, 4)}"
+            f"- `{route}` — error count {metrics.error_count},"
+            f" error rate {_fmt_float(metrics.error_rate, 4)}"
         )
     lines.append("")
 
@@ -502,7 +509,8 @@ def _build_recommendations(
             key=lambda item: item[1].estimated_total_cost_usd,
         )[0]
         lines.append(
-            f"- Prioritize `{highest_cost_route}` first, because it currently dominates observed cost."
+            f"- Prioritize `{highest_cost_route}` first,"
+            " because it currently dominates observed cost."
         )
 
         highest_error_route = max(
@@ -511,20 +519,24 @@ def _build_recommendations(
         )[0]
         if after_route_metrics[highest_error_route].error_count > 0:
             lines.append(
-                f"- Investigate `{highest_error_route}` first for failure reduction, because it currently has the highest observed error burden."
+                f"- Investigate `{highest_error_route}` first for failure reduction,"
+                " because it currently has the highest observed error burden."
             )
 
     total_malformed = malformed_before_count + malformed_after_count
     if total_malformed > 0:
         lines.append(
-            f"- Fix telemetry structure upstream. The report skipped {total_malformed} malformed telemetry row(s), which weakens measurement quality."
+            f"- Fix telemetry structure upstream. The report skipped"
+            f" {total_malformed} malformed telemetry row(s),"
+            " which weakens measurement quality."
         )
 
     error_rows = [row for row in after_rows if row.status == "error"]
     unknown_error_rows = [row for row in error_rows if row.error_type == "unknown"]
     if error_rows and (len(unknown_error_rows) / len(error_rows)) > 0.5:
         lines.append(
-            "- Tighten gateway error taxonomy. `unknown` is currently the dominant failure type, which makes operational diagnosis weaker than it should be."
+            "- Tighten gateway error taxonomy. `unknown` is currently the dominant"
+            " failure type, which makes operational diagnosis weaker than it should be."
         )
 
     if missing_eval_coverage:
@@ -550,11 +562,15 @@ def _build_recommendations(
 
         if largest_cost_route is not None:
             lines.append(
-                f"- Review `{largest_cost_route}` carefully in before/after analysis, because it shows the largest absolute cost movement."
+                f"- Review `{largest_cost_route}` carefully in before/after analysis,"
+                " because it shows the largest absolute cost movement."
             )
 
     if not lines:
-        lines.append("- No strong action signal was detected from current artifacts. Collect more telemetry before making optimization decisions.")
+        lines.append(
+            "- No strong action signal was detected from current artifacts."
+            " Collect more telemetry before making optimization decisions."
+        )
 
     return lines
 
@@ -598,22 +614,20 @@ def render_markdown_report(
             after_by_route.items(),
             key=lambda item: item[1].error_count,
         )[0]
-        lines.append(
-            f"- Highest current cost route: `{highest_cost_route}`."
-        )
-        lines.append(
-            f"- Highest current error-burden route: `{highest_error_route}`."
-        )
+        lines.append(f"- Highest current cost route: `{highest_cost_route}`.")
+        lines.append(f"- Highest current error-burden route: `{highest_error_route}`.")
     else:
         lines.append("- No valid telemetry rows were available for current-route analysis.")
 
     if before_by_route is not None and before_overall is not None:
         overall_delta = compare_aggregates(before_overall, after_overall)
         lines.append(
-            f"- Overall latency p50 delta: {_fmt_float(overall_delta['latency_p50_ms_delta'], 2)} ms."
+            f"- Overall latency p50 delta:"
+            f" {_fmt_float(overall_delta['latency_p50_ms_delta'], 2)} ms."
         )
         lines.append(
-            f"- Overall total cost delta: {_fmt_float(overall_delta['estimated_total_cost_usd_delta'], 6)} USD."
+            f"- Overall total cost delta:"
+            f" {_fmt_float(overall_delta['estimated_total_cost_usd_delta'], 6)} USD."
         )
         lines.append(
             f"- Overall error rate delta: {_fmt_float(overall_delta['error_rate_delta'], 4)}."
@@ -626,12 +640,8 @@ def render_markdown_report(
     lines.append(f"- Current valid rows: {len(after_rows)}")
     lines.append(f"- Current malformed rows skipped: {malformed_after_count}")
     lines.append(f"- Current routes observed: {len(after_by_route)}")
-    lines.append(
-        f"- Current successes: {sum(1 for row in after_rows if row.status == 'success')}"
-    )
-    lines.append(
-        f"- Current errors: {sum(1 for row in after_rows if row.status == 'error')}"
-    )
+    lines.append(f"- Current successes: {sum(1 for row in after_rows if row.status == 'success')}")
+    lines.append(f"- Current errors: {sum(1 for row in after_rows if row.status == 'error')}")
     if before_by_route is not None:
         lines.append(f"- Before valid rows: {len(before_rows)}")
         lines.append(f"- Before malformed rows skipped: {malformed_before_count}")

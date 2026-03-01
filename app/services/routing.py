@@ -54,12 +54,8 @@ def determine_complexity(message: str) -> tuple[Complexity, Tier, bool]:
     normalized_message = message.strip().lower()
     message_length = len(normalized_message)
 
-    has_complex_keyword = any(
-        keyword in normalized_message for keyword in COMPLEX_KEYWORDS
-    )
-    has_simple_keyword = any(
-        keyword in normalized_message for keyword in SIMPLE_KEYWORDS
-    )
+    has_complex_keyword = any(keyword in normalized_message for keyword in COMPLEX_KEYWORDS)
+    has_simple_keyword = any(keyword in normalized_message for keyword in SIMPLE_KEYWORDS)
 
     if has_complex_keyword or message_length > COMPLEX_LENGTH_THRESHOLD:
         return "complex", "expensive", True

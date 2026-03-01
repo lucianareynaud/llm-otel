@@ -8,6 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -15,19 +16,29 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt ruff mypy
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: pip-${{ runner.os }}-
 
-      - name: Lint
+      - name: Install project and dev dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Ruff lint
         run: python -m ruff check . --output-format=github
 
-      - name: Type check
-        run: python -m mypy app/ gateway/ --ignore-missing-imports
+      - name: Ruff format check
+        run: python -m ruff format --check .
 
-      - name: Test
+      - name: Mypy type check
+        run: python -m mypy app/ gateway/ evals/ reporting/ --ignore-missing-imports
+
+      - name: Pytest
         env:
           OTEL_SDK_DISABLED: "true"
-        run: python -m pytest tests/ -v --tb=short --junitxml=results.xml
+        run: python -m pytest -q --tb=short --junitxml=results.xml
 
       - uses: actions/upload-artifact@v4
         if: always()

@@ -1,12 +1,99 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-otel"
+version = "0.1.0"
+description = "LLM gateway with OpenTelemetry instrumentation and FinOps cost attribution"
+requires-python = ">=3.11"
+dependencies = [
+    # Web framework
+    "fastapi==0.134.0",
+    "uvicorn[standard]==0.41.0",
+    "httpx==0.28.1",
+    # Data validation
+    "pydantic==2.12.5",
+    # LLM provider
+    "openai==2.24.0",
+    # OpenTelemetry — all packages must be version-locked together.
+    # SDK, exporters, and instrumentation are a matched set.
+    #   api/sdk:                    1.39.1
+    #   exporter-otlp-proto-http:   1.39.1
+    #   semantic-conventions:       0.60b1
+    #   instrumentation-fastapi:    0.60b1
+    "opentelemetry-api==1.39.1",
+    "opentelemetry-sdk==1.39.1",
+    "opentelemetry-exporter-otlp-proto-http==1.39.1",
+    "opentelemetry-instrumentation-fastapi==0.60b1",
+    "opentelemetry-semantic-conventions==0.60b1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.2",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.9",
+    "mypy>=1.13",
+]
+
+# ── Setuptools package discovery ──────────────────────────────────────────────
+# Declare all importable packages explicitly so the editable install works
+# without scanning directories that contain non-package content.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*", "gateway*", "evals*", "reporting*"]
+exclude = ["tests*", "scripts*", "artifacts*"]
+
+# ── Ruff ──────────────────────────────────────────────────────────────────────
 [tool.ruff]
 line-length = 100
 exclude = [".venv", ".git", "__pycache__", "artifacts"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
+# E = pycodestyle errors, F = pyflakes, I = isort, UP = pyupgrade
+# W = pycodestyle warnings, B = flake8-bugbear, C4 = flake8-comprehensions
+select = ["E", "F", "I", "UP", "W", "B", "C4"]
+# B008: function call in default argument — unavoidable in FastAPI Field(default_factory=...)
+# B904: raise ... from ... — would require changes in error handling layers not yet hardened
+ignore = ["B008", "B904"]
 
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+# ── Mypy ──────────────────────────────────────────────────────────────────────
 [tool.mypy]
 python_version = "3.11"
-ignore_missing_imports = true
+# Packages checked: all importable application code.
+# tests/ and scripts/ are not declared packages; they are checked
+# via explicit include in CI using --explicit-package-bases.
+packages = ["app", "gateway", "evals", "reporting"]
+
+# Strictness — moderate: catches real bugs without drowning in framework noise.
 warn_return_any = true
 warn_unused_ignores = true
+warn_unused_configs = true
+no_implicit_optional = true
+strict_equality = true
+
+# Third-party stubs are incomplete; suppress missing-import noise.
+ignore_missing_imports = true
+
+# ── Pytest ────────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+# Treat all ResourceWarnings as errors to catch unclosed file handles in tests.
+filterwarnings = [
+    "error::ResourceWarning",
+    # fastapi/starlette use deprecated asyncio APIs on older Python; suppress
+    # until upstream fixes.
+    "ignore::DeprecationWarning:anyio",
+    "ignore::DeprecationWarning:starlette",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m not slow')",
+    "integration: marks tests that require external services",
+]

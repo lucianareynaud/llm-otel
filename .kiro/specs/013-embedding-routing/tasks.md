@@ -4,7 +4,7 @@
 Run before starting any task:
 
 ```bash
-OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 176 tests, all passing
+OTEL_SDK_DISABLED=true pytest tests/ -v  # ≥ 230 tests, all passing
 ```
 
 If any test fails, fix it before proceeding.
@@ -126,7 +126,7 @@ If any test fails, fix it before proceeding.
 
 ## Task 6 — Full verification
 
-- [ ] 6.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 182 tests
+- [ ] 6.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass, ≥ 236 tests
 - [ ] 6.2 `ruff check app/services/routing.py` — zero errors
 - [ ] 6.3 `mypy app/services/routing.py --ignore-missing-imports` — zero errors
 - [ ] 6.4 Confirm: `python -c "from app.services.routing import determine_complexity"` does NOT call
@@ -145,7 +145,7 @@ This spec is complete when:
 - Signature `(message: str) -> tuple[Complexity, Tier, bool]` is unchanged
 - Anchor embeddings are lazy (computed on first call, cached thereafter)
 - `scripts/verify_routing.py` exits 0 with ≥ 90% accuracy (run with real credentials)
-- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 182 tests, all passing
+- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 236 tests, all passing
 - Accuracy is documented at the top of `routing.py` with date
 
 ---
@@ -154,12 +154,11 @@ This spec is complete when:
 
 | Spec | Gate (tests must pass before starting) | New tests added | Running total |
 |------|-----------------------------------------|-----------------|---------------|
-| 005  | 135 (baseline from 001–004)             | 0               | 135           |
-| 006  | 135                                     | 3               | 138           |
-| 007  | 138                                     | 9               | 147           |
-| 008  | 147                                     | 0               | 147           |
-| 009  | 147                                     | 4               | 151           |
-| 010  | 151                                     | 8               | 159           |
-| 011  | 159                                     | 8               | 167           |
-| 012  | 167                                     | 9               | 176           |
-| 013  | 176                                     | 6               | 182           |
+| 001–006 + hardening | 0 (fresh baseline)              | 192             | 192           |
+| 007  | 192                                     | 9               | 201           |
+| 008  | 201                                     | 0               | 201           |
+| 009  | 201                                     | 4               | 205           |
+| 010  | 205                                     | 8               | 213           |
+| 011  | 213                                     | 8               | 221           |
+| 012  | 221                                     | 9               | 230           |
+| 013  | 230                                     | 6               | 236           |

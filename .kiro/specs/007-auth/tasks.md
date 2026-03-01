@@ -4,7 +4,7 @@
 Run before starting any task:
 
 ```bash
-OTEL_SDK_DISABLED=true pytest tests/ -v  # must report ≥ 138 tests, all passing
+OTEL_SDK_DISABLED=true pytest tests/ -v  # must report ≥ 192 tests, all passing
 ```
 
 If any test fails, fix it first. Do not proceed while the gate is red.
@@ -132,7 +132,7 @@ Without `APP_API_KEY`, the process raises `ValueError` before accepting requests
 
 ## Task 8 — Full verification
 
-- [ ] 8.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass (138 + 9 = ≥ 147)
+- [ ] 8.1 `OTEL_SDK_DISABLED=true pytest tests/ -v` — all tests pass (192 + 9 = ≥ 201)
 - [ ] 8.2 `ruff check app/middleware/` — zero errors
 - [ ] 8.3 `mypy app/middleware/ --ignore-missing-imports` — zero errors
 - [ ] 8.4 Confirm no log line ever contains the value of `APP_API_KEY` (grep log output)
@@ -147,5 +147,5 @@ This spec is complete when:
 - Requests exceeding `RATE_LIMIT_RPM` return HTTP 429 with `Retry-After`
 - Health endpoints remain accessible without auth
 - `APP_API_KEY` missing at startup raises `ValueError` before any request is served
-- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 147 tests, all passing
+- `OTEL_SDK_DISABLED=true pytest tests/ -v` reports ≥ 201 tests, all passing
 - No route handler contains any auth or rate-limit logic
