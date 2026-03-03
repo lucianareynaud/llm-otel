@@ -236,7 +236,7 @@ Some adjacent capabilities are valid future extensions, but they are not require
 - circuit breaking
 - persistent conversation storage
 
-These are extension points, not proof that the current repository is unfinished. The current repository already stands on its own as a working reference for gateway-based LLM cost control, telemetry, evaluation, and reporting. fileciteturn2file1L31-L41
+These are extension points, not proof that the current repository is unfinished. The current repository already stands on its own as a working reference for gateway-based LLM cost control, telemetry, evaluation, and reporting.
 
 ## Why this repository matters
 
